@@ -5,19 +5,20 @@ import matplotlib.pyplot as plt
 
 
 def plot(result):
-    # Convert the annotated image from BGR to RGB for displaying with Matplotlib
+    """Plots a yolo segmentation result
+
+    Args:
+        result (YOLO result): result of yolo inference
+    """
     annotated_image_rgb = cv2.cvtColor(result.plot(), cv2.COLOR_BGR2RGB)
 
-    # Display the original image and the annotated image
     plt.figure(figsize=(12, 6))
 
-    # Original Image
     plt.subplot(1, 2, 1)
     plt.imshow(cv2.cvtColor(result.orig_img, cv2.COLOR_BGR2RGB))
     plt.title('Original Image')
     plt.axis('off')
 
-    # Annotated Image with YOLO Predictions
     plt.subplot(1, 2, 2)
     plt.imshow(annotated_image_rgb)
     plt.title('YOLO Predictions')
@@ -43,7 +44,16 @@ def rle(inarray):
         return (z, p, ia[i])
 
 
-def longest_encoding(arr):
+def longest_encoding(arr) -> tuple[int, int]:
+    """find start and end of longest consecutive ones in the array
+
+    Args:
+        arr (ndarray): numpy array that consists of 0 and 1
+
+    Returns:
+        int: starting index that is inclusive
+        int: ending index that is exclusive
+    """
     runlengths, startpositions, values = rle(arr)
     longest = 0
     start = 0
@@ -56,7 +66,15 @@ def longest_encoding(arr):
     return start, start+longest
 
 
-def body_measurement(mask) -> float:
+def body_measurement(mask) -> tuple[float, float, float]:
+    """measures a mask that is a goat. The goat needs to be facing the left side of the image.
+
+    Args:
+        mask: binary mask of the goat where 1 means it is part of the goat
+
+    Returns:
+        tuple[float, float, float]: body_length, shoulder_height, sacrum_height in fractional pixels
+    """
     assert mask.shape == (640, 480)
     im = mask.astype(np.uint8)*255
     horizontal_cumsum = np.cumsum(mask, axis=1)
