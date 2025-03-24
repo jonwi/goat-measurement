@@ -144,32 +144,32 @@ def body_measurement(mask) -> tuple[float, float, float]:
     return body_length, shoulder_height, sacrum_height
 
 
-def scale_to_width(pixels, orig_size=(4032, 3024), mask_size=(640, 480)):
+def scale_to_width(pixels, orig_shape=(4032, 3024), mask_shape=(640, 480)):
     """scales a pixel from the mask size to size of the original foto in the width direction
 
     Args:
         pixels (int): amount of pixels
-        orig_size (tuple, optional): size of the original foto. Defaults to (4032, 3024).
-        mask_size (tuple, optional): size of the mask. Defaults to (640, 480).
+        orig_shape (tuple, optional): shape of the original foto. Defaults to (4032, 3024).
+        mask_shape (tuple, optional): shape of the mask. Defaults to (640, 480).
 
     Returns:
         int: pixels of the original foto
     """
-    return pixels/mask_size[1]*orig_size[1]
+    return pixels/mask_shape[1]*orig_shape[1]
 
 
-def scale_to_height(pixels, orig_size=(4032, 3024), mask_size=(640, 480)):
+def scale_to_height(pixels, orig_shape=(4032, 3024), mask_shape=(640, 480)):
     """scales a pixel from the mask size to size of the original foto in the height direction
 
     Args:
         pixels (int): amount of pixels
-        orig_size (tuple, optional): size of the original foto. Defaults to (4032, 3024).
-        mask_size (tuple, optional): size of the mask. Defaults to (640, 480).
+        orig_shape (tuple, optional): shape of the original foto. Defaults to (4032, 3024).
+        mask_shape (tuple, optional): shape of the mask. Defaults to (640, 480).
 
     Returns:
         int: pixels of the original foto
     """
-    return pixels/mask_size[0]*orig_size[0]
+    return pixels/mask_shape[0]*orig_shape[0]
 
 
 def pixels_to_cm(pixels, distance, calibration=155.42, calibration_distance=20.0):
@@ -185,3 +185,22 @@ def pixels_to_cm(pixels, distance, calibration=155.42, calibration_distance=20.0
         float: measurement of the pixel in cm
     """
     return pixels/(calibration*calibration_distance/(distance*100))
+
+
+def convert_to_cm(body_length, shoulder_height, sacrum_height, distance, calibration=155.42, calibration_distance=20.0, orig_shape=(4032, 3024), mask_shape=(640, 480)):
+    """convenience method to convert all measurements from pixels to cm
+
+    Args:
+        body_length (float): body_length in pixels
+        shoulder_height (float): body_length in pixels
+        sacrum_height (float): body_length in pixels
+        distance (float): distance of the photo
+        calibration (float, optional): _description_. Defaults to 155.42.
+        calibration_distance (float, optional): _description_. Defaults to 20.0.
+        orig_shape (tuple, optional): shape of the original picture
+        mask_shape (tuple, optional): shape of the mask
+    """
+    return pixels_to_cm(scale_to_width(body_length, orig_shape, mask_shape), distance, calibration, calibration_distance), \
+        pixels_to_cm(scale_to_height(shoulder_height, orig_shape, mask_shape), distance, calibration, calibration_distance), \
+        pixels_to_cm(scale_to_width(sacrum_height, orig_shape,
+                     mask_shape), distance, calibration, calibration_distance)
