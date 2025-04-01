@@ -105,7 +105,11 @@ cython_debug/
 *.jpg
 *.png
 *.pt
+*.onnx
+*.pb
 datasets/
+best_saved_model/
+best_web_model/
 YOLO11/
 !best.pt
 runs/
