@@ -10,7 +10,7 @@ export function initPWA(app: Element) {
 
     const refreshCallback = () => refreshSW?.(true)
 
-    function hidePwaToast (raf: boolean) {
+    function hidePwaToast(raf: boolean) {
         if (raf) {
             requestAnimationFrame(() => hidePwaToast(false))
             return
@@ -33,7 +33,7 @@ export function initPWA(app: Element) {
 
     let swActivated = false
     // periodic sync is disabled, change the value to enable it, the period is in milliseconds
-   // You can remove onRegisteredSW callback and registerPeriodicSync function
+    // You can remove onRegisteredSW callback and registerPeriodicSync function
     const period = 0
 
     window.addEventListener('load', () => {

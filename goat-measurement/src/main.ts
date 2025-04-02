@@ -30,13 +30,15 @@ video.onloadedmetadata = () => {
 }
 const imageEl = document.querySelector<HTMLImageElement>("#image")!
 
+let yolo = new YOLO()
+const yoloProm = yolo.loadModel()
+
 imageButton.addEventListener('click', async () => {
   await yoloTFJS()
 })
 
 async function yoloTFJS() {
-  let yolo = new YOLO()
-  await yolo.loadModel()
+  await yoloProm
   yolo.predict(imageEl)
 }
 
