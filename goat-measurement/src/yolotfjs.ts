@@ -27,7 +27,11 @@ export class YOLO {
     [this.maskWidth, this.maskHeight] = [160, 160];
     this.canvas.width = this.inputWidth
     this.canvas.height = this.inputHeight
-    document.body.appendChild(this.canvas)
+
+    // remove this in production
+    document.querySelector("#test")?.appendChild(this.canvas)
+
+    // cold start to compile the whole network may take a second
     this.model.execute(tf.zeros([1, this.inputHeight, this.inputWidth, 3]));
     console.log("model loaded in: ", new Date().getTime() - startTime)
     console.log(tf.getBackend())

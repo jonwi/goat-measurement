@@ -12,18 +12,30 @@ app.innerHTML = `
     <button id="pwa-close">Close</button>
     <button id="pwa-refresh">Reload</button>
   </div>
-<h1>Goat Weight Measurement</h1>
-  <video id="video"></video>
-  <button id="imageBtn">Take Photo</button>
-  <div id="image-container">
-    <img id="image" src="/example.jpg" />
+  <div id="app-container">
+    <div id="video-container">
+      <video id="video"></video>
+      <div id="overlay-container">
+        <img id="overlay" src="/overlay2.png"/>
+      </div>
+    </div>
+    <div id="right-controls">
+      <button id="mainButton"></button>
+      <button id="imageBtn">Take Photo</button>
+    </div>
+  </div>
+  <div id="test">
+    Test stuff that we dont need for the app
+    <div id="image-container">
+      <img id="image" src="/example.jpg" />
+    </div>
   </div>
 </div>
 `
 
 const imageButton = document.querySelector<HTMLButtonElement>('#imageBtn')!
 const video = document.querySelector<HTMLVideoElement>('video#video')!
-const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1024, height: 1024 } })!
+const stream = await navigator.mediaDevices.getUserMedia({ video })!
 video.srcObject = stream
 video.onloadedmetadata = () => {
   video.play();
