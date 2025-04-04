@@ -2,7 +2,6 @@ import * as tf from '@tensorflow/tfjs';
 
 export class YOLO {
 
-  canvas = document.createElement('canvas');
   originalWidth: number | null = null;
   originalHeight: number | null = null;
   inputWidth: number | null = null;
@@ -13,9 +12,12 @@ export class YOLO {
   maskWidth: number | null = null;
   maskHeight: number | null = null;
 
+  box: Box | null = null;
+
   model: any | null = null;
   output: [tf.Tensor, tf.Tensor] | null = null;
   input: tf.Tensor | null = null;
+  // 2d tensor with [maskHeight x maskWidth]
   mask: tf.Tensor2D | null = null;
 
   async loadModel() {
@@ -25,11 +27,6 @@ export class YOLO {
     [this.inputHeight, this.inputWidth] = [640, 640];
     [this.xyxy, this.classes, this.numMasks] = [4, 1, 32];
     [this.maskWidth, this.maskHeight] = [160, 160];
-    this.canvas.width = this.inputWidth
-    this.canvas.height = this.inputHeight
-
-    // remove this in production
-    document.querySelector("#test")?.appendChild(this.canvas)
 
     // cold start to compile the whole network may take a second
     this.model.execute(tf.zeros([1, this.inputHeight, this.inputWidth, 3]));
@@ -37,12 +34,12 @@ export class YOLO {
     console.log(tf.getBackend())
   }
 
-  async predict(imageEl: HTMLImageElement) {
+  async predict(imageEl: HTMLImageElement, canvas: HTMLCanvasElement | null = null) {
     const startTime = new Date().getTime()
     this.preprocess(imageEl)
     this.runInference()
     this.postprocess()
-    await this.draw(imageEl)
+    await this.draw(imageEl, canvas)
     console.log("predict time: ", new Date().getTime() - startTime)
     return this.mask
   }
@@ -106,48 +103,89 @@ export class YOLO {
       // this sync is a major bottleneck but might also not make an impact at all when resolved
       const maxIndex = confidences.argMax(1).dataSync()[0]
       const maskCoeffs = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze()
+      this.box = new Box(detections.slice([0, maxIndex], [this.xyxy!, 1]).dataSync<any>())
       console.log("slice time: ", new Date().getTime() - sliceTime)
 
       const multTime = new Date().getTime()
       // Reconstruct mask
-      let mask: tf.Tensor2D = tf.tidy(() => {
-        return segmentationMap
+      let mask: tf.Tensor2D =
+        segmentationMap
           .matMul(maskCoeffs.expandDims(1))  // Shape [160, 160, 1]
-          //.sigmoid() // maybe not needed
-          //.greater(tf.scalar(0.9)) // maybe not needed
-          .toFloat()
-          .squeeze();
-      });
+          .squeeze()
+          .expandDims(-1)
+          .resizeBilinear([this.inputHeight!, this.inputWidth!], false, true)
+          .squeeze()
+          .slice([this.box!.topY(), this.box!.topX()], [this.box!.height(), this.box!.width()])
+          .pad([
+            [this.box!.topY(), this.inputHeight! - this.box!.topY() - this.box!.height()],
+            [this.box!.topX(), this.inputWidth! - this.box!.topX() - this.box!.width()],
+          ])
+      let binary = tf.where<tf.Tensor2D>(mask.greater(0), tf.ones(mask.shape, 'int32'), tf.zeros(mask.shape, 'int32'))
+
       console.log("mult time: ", new Date().getTime() - multTime)
-      return mask
+      return binary
     })
 
     console.log("postprocess time: ", new Date().getTime() - startTime)
     return this.mask;
   }
 
-  async draw(image: HTMLImageElement) {
+
+  async draw(image: HTMLImageElement, canvas: HTMLCanvasElement | null) {
+    if (this.mask == null || this.box == null || this.inputHeight == null || this.inputWidth == null || this.originalHeight == null || this.originalWidth == null)
+      return
+
     let startTime = new Date().getTime()
 
     const newOverlay = tf.tidy(() => {
       let expandedMask = this.mask!.expandDims(-1)
-      let resizedMask = expandedMask.resizeBilinear([this.inputHeight!, this.inputWidth!], false, true)
       let overlay = tf.zeros<tf.Rank.R3>([this.inputWidth!, this.inputHeight!, 4], 'int32') // RGBA
-      return overlay.where<tf.Tensor3D>(resizedMask.less(1), tf.tensor1d([128, 0, 0, 150], 'int32'))
+      return overlay.where<tf.Tensor3D>(expandedMask.less(1), tf.tensor1d([128, 0, 0, 150], 'int32'))
     })
 
     let arr = await tf.browser.toPixels(newOverlay);
     newOverlay.dispose()
     let tempCanvas = document.createElement("canvas")
-    tempCanvas.width = this.inputWidth!
-    tempCanvas.height = this.inputHeight!
+    tempCanvas.width = this.inputWidth
+    tempCanvas.height = this.inputHeight
     let tmpCtx = tempCanvas.getContext('2d')!
-    tmpCtx.putImageData(new ImageData(arr, this.inputWidth!, this.inputHeight!), 0, 0)
-    let ctx = this.canvas.getContext('2d')!
-    ctx.drawImage(image, 80, 0, this.originalWidth!, this.originalHeight!)
-    ctx.drawImage(tempCanvas, 0, 0, this.inputWidth!, this.inputHeight!)
+    tmpCtx.putImageData(new ImageData(arr, this.inputWidth, this.inputHeight), 0, 0)
+    if (canvas) {
+      let ctx = canvas.getContext('2d')!
+      ctx.drawImage(image, 80, 0, this.originalWidth, this.originalHeight)
+      ctx.drawImage(tempCanvas, 0, 0, this.inputWidth, this.inputHeight)
+      ctx.rect(this.box.topX(), this.box.topY(), this.box.w, this.box.h)
+      ctx.stroke()
+    }
     console.log("draw time: ", new Date().getTime() - startTime)
   }
 
+}
+
+class Box {
+  x: number
+  y: number
+  w: number
+  h: number
+
+  constructor(arr: Float32Array<ArrayBufferLike>) {
+    this.x = arr[0]
+    this.y = arr[1]
+    this.w = arr[2]
+    this.h = arr[3]
+  }
+
+  topX() {
+    return Math.ceil(this.x - this.w / 2)
+  }
+  topY() {
+    return Math.ceil(this.y - this.h / 2)
+  }
+  width() {
+    return Math.ceil(this.w)
+  }
+  height() {
+    return Math.ceil(this.h)
+  }
 }
 

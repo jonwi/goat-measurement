@@ -1,0 +1,90 @@
+import * as tf from '@tensorflow/tfjs'
+
+async function binary_rle(t: tf.Tensor1D) {
+  let l = t.shape[0]
+  let indices = tf.range(0, t.shape[0], 1, 'int32')
+
+  let unequal = t.slice(1, l - 1).notEqual(t.slice(0, l - 1))
+    .concat(tf.tensor1d([true]))
+  let nonzero = await tf.booleanMaskAsync(indices, unequal)
+
+  let diff = tf.ones([1]).concat(nonzero.slice(1, nonzero.shape[0] - 1).sub(nonzero.slice(0, nonzero.shape[0] - 1)))
+  let ones = t.greater(0).gather(nonzero)
+  let possible = diff.where(ones, tf.tensor1d([0]))
+  let maxLengthIndex = possible.argMax()
+  if (maxLengthIndex.dataSync()[0] > 0) {
+    let length = possible.max().data()
+    let end = nonzero.gather(maxLengthIndex).data()
+    // underflow possible
+    let begin = nonzero.gather(maxLengthIndex.sub(tf.tensor1d([1], 'int32'))).data()
+
+    let res = await Promise.all([begin, end, length])
+    let unwrap = res.map(r => r[0])
+    unwrap[0] += 1
+    return unwrap
+  }
+  return [-1, -1, -1]
+}
+
+export async function body_measurement(mask: tf.Tensor2D, canvas: HTMLCanvasElement | null = null) {
+  // mask is hxw 640x640
+  let height = mask.shape[0]
+  let width = mask.shape[1]
+  let horizontalCumsum = mask.cumsum(1)
+  let verticalCumsum = mask.cumsum(0)
+
+  let lastLine = horizontalCumsum.slice([0, width - 2], [-1, 1])
+  let longestLine = lastLine.squeeze().argMax().add(tf.scalar(10, 'int32'))
+  let [start, end, length] = await binary_rle(mask.gather(longestLine).squeeze())
+  draw(canvas, start, longestLine.dataSync()[0], end, longestLine.dataSync()[0], "red")
+
+  let sacrum = Math.floor(length * 0.75 + start)
+  let sacLine = verticalCumsum.slice([0, sacrum], [-1, 1]).squeeze()
+  let sacrum_start = sacLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax()
+  let sacrum_end = sacLine.argMax()
+  draw(canvas, sacrum, sacrum_start.dataSync()[0], sacrum, sacrum_end.dataSync()[0], "green")
+
+  let shoulder = Math.floor(length * 0.25) + start
+  let shoulderLine = verticalCumsum.slice([0, shoulder], [-1, 1]).squeeze()
+  let shoulder_start = shoulderLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax()
+  let shoulder_end = shoulderLine.argMax()
+  draw(canvas, shoulder, shoulder_start.dataSync()[0], shoulder, shoulder_end.dataSync()[0], "blue")
+
+  let middle = Math.floor(length * 0.5) + start
+  let middleLine = verticalCumsum.slice([0, middle], [-1, 1]).squeeze()
+  let middle_start = middleLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax().dataSync()[0]
+  let middle_end = middleLine.argMax().dataSync()[0]
+
+
+  let center = Math.floor((middle_end - middle_start) * 0.25 + middle_start)
+  let centerLine = horizontalCumsum.slice([center, 0], [1, -1]).squeeze()
+  let center_start = centerLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax()
+  let center_end = centerLine.argMax()
+  let body_length = center_end.sub(center_start)
+
+  let left_section = mask.slice([0, 0], [-1, middle])
+  let z = left_section.mul(tf.range(0, height, 1, 'int32').expandDims(-1))
+  let front_feed_end = z.max().max()
+  let shoulder_height = front_feed_end.sub(shoulder_start)
+  draw(canvas, shoulder + 10, shoulder_start.dataSync()[0], shoulder + 10, front_feed_end.dataSync()[0], "darkblue")
+
+
+  let right_section = mask.slice([0, middle], [-1, -1])
+  let y = right_section.mul(tf.range(0, height, 1, 'int32').expandDims(-1))
+  let back_feed_end = y.max().max()
+  let sacrum_height = back_feed_end.sub(sacrum_start)
+  draw(canvas, sacrum + 20, sacrum_start.dataSync()[0], sacrum + 20, back_feed_end.dataSync()[0], "darkgreen")
+
+  return [body_length.dataSync()[0], shoulder_height.dataSync()[0], sacrum_height.dataSync()[0]]
+}
+
+function draw(canvas: HTMLCanvasElement | null, x1: number, y1: number, x2: number, y2: number, style: string) {
+  if (canvas != null) {
+    let ctx = canvas.getContext('2d')!
+    ctx.beginPath()
+    ctx.moveTo(x1, y1)
+    ctx.lineTo(x2, y2)
+    ctx.strokeStyle = style
+    ctx.stroke()
+  }
+}

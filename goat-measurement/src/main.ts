@@ -1,6 +1,8 @@
 import './style.css'
 import { initPWA } from './pwa.ts'
 import { YOLO } from './yolotfjs.ts'
+import './utils.ts'
+import { body_measurement } from './utils.ts'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
@@ -29,6 +31,7 @@ app.innerHTML = `
     <div id="image-container">
       <img id="image" src="/example.jpg" />
     </div>
+    <canvas id="debug-output" width="640" height="640"></canvas>
   </div>
 </div>
 `
@@ -41,6 +44,7 @@ video.onloadedmetadata = () => {
   video.play();
 }
 const imageEl = document.querySelector<HTMLImageElement>("#image")!
+const debugCanvas = document.querySelector<HTMLCanvasElement>("#debug-output")!
 
 let yolo = new YOLO()
 const yoloProm = yolo.loadModel()
@@ -51,7 +55,11 @@ imageButton.addEventListener('click', async () => {
 
 async function yoloTFJS() {
   await yoloProm
-  yolo.predict(imageEl)
+  let mask = await yolo.predict(imageEl, debugCanvas)
+  if (mask != null) {
+    let [body_length, shoulder_height, sacrum_height] = await body_measurement(mask, debugCanvas)
+    console.log(body_length, shoulder_height, sacrum_height)
+  }
 }
 
 initPWA(app)
