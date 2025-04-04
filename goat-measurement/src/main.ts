@@ -2,7 +2,7 @@ import './style.css'
 import { initPWA } from './pwa.ts'
 import { YOLO } from './yolotfjs.ts'
 import './utils.ts'
-import { body_measurement } from './utils.ts'
+import { body_measurement, convert_to_cm } from './utils.ts'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
@@ -58,7 +58,10 @@ async function yoloTFJS() {
   let mask = await yolo.predict(imageEl, debugCanvas)
   if (mask != null) {
     let [body_length, shoulder_height, sacrum_height] = await body_measurement(mask, debugCanvas)
+    console.log("pixel values: ")
     console.log(body_length, shoulder_height, sacrum_height)
+    console.log("real values: ")
+    console.log(convert_to_cm(body_length, shoulder_height, sacrum_height, 1.64))
   }
 }
 

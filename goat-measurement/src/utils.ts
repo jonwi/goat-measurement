@@ -34,7 +34,7 @@ export async function body_measurement(mask: tf.Tensor2D, canvas: HTMLCanvasElem
   let verticalCumsum = mask.cumsum(0)
 
   let lastLine = horizontalCumsum.slice([0, width - 2], [-1, 1])
-  let longestLine = lastLine.squeeze().argMax().add(tf.scalar(10, 'int32'))
+  let longestLine = lastLine.squeeze().argMax().add(tf.scalar(20, 'int32'))
   let [start, end, length] = await binary_rle(mask.gather(longestLine).squeeze())
   draw(canvas, start, longestLine.dataSync()[0], end, longestLine.dataSync()[0], "red")
 
@@ -61,6 +61,7 @@ export async function body_measurement(mask: tf.Tensor2D, canvas: HTMLCanvasElem
   let center_start = centerLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax()
   let center_end = centerLine.argMax()
   let body_length = center_end.sub(center_start)
+  draw(canvas, center_start.dataSync()[0], center, center_end.dataSync()[0], center, "yellow")
 
   let left_section = mask.slice([0, 0], [-1, middle])
   let z = left_section.mul(tf.range(0, height, 1, 'int32').expandDims(-1))
@@ -88,3 +89,24 @@ function draw(canvas: HTMLCanvasElement | null, x1: number, y1: number, x2: numb
     ctx.stroke()
   }
 }
+
+function scale_to_width(pixels: number, orig_shape = [4032, 3024], mask_shape = [640, 480]) {
+  return pixels / mask_shape[1] * orig_shape[1]
+}
+
+function scale_to_height(pixels: number, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 35) {
+  return pixels / mask_shape[0] * orig_shape[0] / Math.cos(angle * Math.PI / 180)
+}
+
+function pixels_to_cm(pixels: number, distance: number, calibration = 155.42, calibration_distance = 20) {
+  return pixels / (calibration * calibration_distance / (distance * 100))
+}
+
+export function convert_to_cm(body_length: number, shoulder_height: number, sacrum_height: number, distance: number, calibration = 155.42, calibration_distance = 20, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 35) {
+  return [
+    pixels_to_cm(scale_to_width(body_length, orig_shape, mask_shape), distance, calibration, calibration_distance),
+    pixels_to_cm(scale_to_height(shoulder_height, orig_shape, mask_shape, angle), distance, calibration, calibration_distance),
+    pixels_to_cm(scale_to_height(sacrum_height, orig_shape, mask_shape, angle), distance, calibration, calibration_distance)
+  ]
+}
+
