@@ -23,7 +23,7 @@ export class YOLO {
   async loadModel() {
     const startTime = new Date().getTime();
 
-    this.model = await tf.loadGraphModel('public/model/model.json');
+    this.model = await tf.loadGraphModel('/model/model.json');
     [this.inputHeight, this.inputWidth] = [640, 640];
     [this.xyxy, this.classes, this.numMasks] = [4, 1, 32];
     [this.maskWidth, this.maskHeight] = [160, 160];
