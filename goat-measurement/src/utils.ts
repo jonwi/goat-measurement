@@ -38,11 +38,11 @@ export async function body_measurement(mask: tf.Tensor2D, canvas: HTMLCanvasElem
   let [start, end, length] = await binary_rle(mask.gather(longestLine).squeeze())
   draw(canvas, start, longestLine.dataSync()[0], end, longestLine.dataSync()[0], "red")
 
-  let sacrum = Math.floor(length * 0.75 + start)
-  let sacLine = verticalCumsum.slice([0, sacrum], [-1, 1]).squeeze()
-  let sacrum_start = sacLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax()
-  let sacrum_end = sacLine.argMax()
-  draw(canvas, sacrum, sacrum_start.dataSync()[0], sacrum, sacrum_end.dataSync()[0], "green")
+  let rump = Math.floor(length * 0.75 + start)
+  let sacLine = verticalCumsum.slice([0, rump], [-1, 1]).squeeze()
+  let rump_start = sacLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax()
+  let rump_end = sacLine.argMax()
+  draw(canvas, rump, rump_start.dataSync()[0], rump, rump_end.dataSync()[0], "green")
 
   let shoulder = Math.floor(length * 0.25) + start
   let shoulderLine = verticalCumsum.slice([0, shoulder], [-1, 1]).squeeze()
@@ -73,10 +73,10 @@ export async function body_measurement(mask: tf.Tensor2D, canvas: HTMLCanvasElem
   let right_section = mask.slice([0, middle], [-1, -1])
   let y = right_section.mul(tf.range(0, height, 1, 'int32').expandDims(-1))
   let back_feed_end = y.max().max()
-  let sacrum_height = back_feed_end.sub(sacrum_start)
-  draw(canvas, sacrum + 20, sacrum_start.dataSync()[0], sacrum + 20, back_feed_end.dataSync()[0], "darkgreen")
+  let rump_height = back_feed_end.sub(rump_start)
+  draw(canvas, rump + 20, rump_start.dataSync()[0], rump + 20, back_feed_end.dataSync()[0], "darkgreen")
 
-  return [body_length.dataSync()[0], shoulder_height.dataSync()[0], sacrum_height.dataSync()[0]]
+  return [body_length.dataSync()[0], shoulder_height.dataSync()[0], rump_height.dataSync()[0]]
 }
 
 function draw(canvas: HTMLCanvasElement | null, x1: number, y1: number, x2: number, y2: number, style: string) {
@@ -102,11 +102,11 @@ function pixels_to_cm(pixels: number, distance: number, calibration = 155.42, ca
   return pixels / (calibration * calibration_distance / (distance * 100))
 }
 
-export function convert_to_cm(body_length: number, shoulder_height: number, sacrum_height: number, distance: number, calibration = 155.42, calibration_distance = 20, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 35) {
+export function convert_to_cm(body_length: number, shoulder_height: number, rump_height: number, distance: number, calibration = 155.42, calibration_distance = 20, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 35) {
   return [
     pixels_to_cm(scale_to_width(body_length, orig_shape, mask_shape), distance, calibration, calibration_distance),
     pixels_to_cm(scale_to_height(shoulder_height, orig_shape, mask_shape, angle), distance, calibration, calibration_distance),
-    pixels_to_cm(scale_to_height(sacrum_height, orig_shape, mask_shape, angle), distance, calibration, calibration_distance)
+    pixels_to_cm(scale_to_height(rump_height, orig_shape, mask_shape, angle), distance, calibration, calibration_distance)
   ]
 }
 

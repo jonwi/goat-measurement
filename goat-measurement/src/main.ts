@@ -38,11 +38,17 @@ app.innerHTML = `
 
 const imageButton = document.querySelector<HTMLButtonElement>('#imageBtn')!
 const video = document.querySelector<HTMLVideoElement>('video#video')!
-const stream = await navigator.mediaDevices.getUserMedia({ video })!
-video.srcObject = stream
-video.onloadedmetadata = () => {
-  video.play();
-}
+navigator.permissions.query({ name: "camera" }).then(async (perm) => {
+  console.log(perm)
+  if (perm.state != 'denied') {
+    const stream = await navigator.mediaDevices.getUserMedia({ video })!
+    video.srcObject = stream
+    video.onloadedmetadata = () => {
+      video.play();
+    }
+  }
+})
+
 const imageEl = document.querySelector<HTMLImageElement>("#image")!
 const debugCanvas = document.querySelector<HTMLCanvasElement>("#debug-output")!
 
@@ -57,11 +63,11 @@ async function yoloTFJS() {
   await yoloProm
   let mask = await yolo.predict(imageEl, debugCanvas)
   if (mask != null) {
-    let [body_length, shoulder_height, sacrum_height] = await body_measurement(mask, debugCanvas)
+    let [body_length, shoulder_height, rump_height] = await body_measurement(mask, debugCanvas)
     console.log("pixel values: ")
-    console.log(body_length, shoulder_height, sacrum_height)
+    console.log(body_length, shoulder_height, rump_height)
     console.log("real values: ")
-    console.log(convert_to_cm(body_length, shoulder_height, sacrum_height, 1.64))
+    console.log(convert_to_cm(body_length, shoulder_height, rump_height, 1.64))
   }
 }
 
