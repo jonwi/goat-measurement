@@ -6,6 +6,7 @@ import './utils.ts'
 import './sam2.ts'
 import { body_measurement, convert_to_cm } from './utils.ts'
 import { createMask } from './sam2.ts'
+import { AngleProvider } from './angle-provider.ts'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
@@ -55,11 +56,12 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
 
 const imageEl = document.querySelector<HTMLImageElement>("#image")!
 const debugCanvas = document.querySelector<HTMLCanvasElement>("#debug-output")!
-const depthCanvas = document.querySelector<HTMLCanvasElement>("#depth-canvas")
+const depthCanvas = document.querySelector<HTMLCanvasElement>("#depth-canvas")!
 
 let yolo = new YOLO()
 const yoloProm = yolo.loadModel()
 const distanceProvider = new DistanceProvider()
+const angleProvider = new AngleProvider()
 
 imageButton.addEventListener('click', async () => {
   await yoloTFJS()
@@ -72,13 +74,14 @@ async function yoloTFJS() {
   // const sam2mask = await createMask(imageEl, debugCanvas)
 
   const distance = await distanceProvider.distance(imageEl, depthCanvas)
+  const angle = await angleProvider.angle()
 
   if (mask != null) {
     let [body_length, shoulder_height, rump_height] = await body_measurement(mask, debugCanvas)
     console.log("pixel values: ")
     console.log(body_length, shoulder_height, rump_height)
     console.log("real values: ")
-    console.log(convert_to_cm(body_length, shoulder_height, rump_height, distance))
+    console.log(convert_to_cm(body_length, shoulder_height, rump_height, { distance: distance, angle: angle }))
   }
 }
 

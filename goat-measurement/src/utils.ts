@@ -90,23 +90,50 @@ function draw(canvas: HTMLCanvasElement | null, x1: number, y1: number, x2: numb
   }
 }
 
-function scale_to_width(pixels: number, orig_shape = [4032, 3024], mask_shape = [640, 480]) {
-  return pixels / mask_shape[1] * orig_shape[1]
+function scale_to_width(pixels: number, convertOptions: Options) {
+  return pixels / convertOptions.mask_shape[1] * convertOptions.orig_shape[1]
 }
 
-function scale_to_height(pixels: number, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 20) {
-  return pixels / mask_shape[0] * orig_shape[0] / Math.cos(angle * Math.PI / 180)
+function scale_to_height(pixels: number, convertOptions: Options) {
+  return pixels / convertOptions.mask_shape[0] * convertOptions.orig_shape[0] / Math.cos(convertOptions.angle * Math.PI / 180)
 }
 
-function pixels_to_cm(pixels: number, distance: number, calibration = 155.42, calibration_distance = 20) {
-  return pixels / (calibration * calibration_distance / (distance * 100))
+function pixels_to_cm(pixels: number, convertOptions: Options) {
+  return pixels / (convertOptions.calibration * convertOptions.calibration_distance / (convertOptions.distance * 100))
 }
 
-export function convert_to_cm(body_length: number, shoulder_height: number, rump_height: number, distance: number, calibration = 155.42, calibration_distance = 20, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 20) {
+export function convert_to_cm(body_length: number, shoulder_height: number, rump_height: number, convertOptions: ConvertOptions) {
+  const options = { ...DefaultConvertOptions, ...convertOptions }
   return [
-    pixels_to_cm(scale_to_width(body_length, orig_shape, mask_shape), distance, calibration, calibration_distance),
-    pixels_to_cm(scale_to_height(shoulder_height, orig_shape, mask_shape, angle), distance, calibration, calibration_distance),
-    pixels_to_cm(scale_to_height(rump_height, orig_shape, mask_shape, angle), distance, calibration, calibration_distance)
+    pixels_to_cm(scale_to_width(body_length, options), options),
+    pixels_to_cm(scale_to_height(shoulder_height, options), options),
+    pixels_to_cm(scale_to_height(rump_height, options), options)
   ]
 }
 
+type ConvertOptions = {
+  distance?: number;
+  calibration?: number;
+  calibration_distance?: number;
+  orig_shape?: number[];
+  mask_shape?: number[];
+  angle?: number;
+}
+
+type Options = {
+  distance: number;
+  calibration: number;
+  calibration_distance: number;
+  orig_shape: number[];
+  mask_shape: number[];
+  angle: number;
+}
+
+const DefaultConvertOptions: Options = {
+  distance: 1.5,
+  calibration: 155.42,
+  calibration_distance: 20,
+  orig_shape: [4032, 3024],
+  mask_shape: [640, 480],
+  angle: 20,
+}
