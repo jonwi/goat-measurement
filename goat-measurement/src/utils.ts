@@ -56,7 +56,7 @@ export async function body_measurement(mask: tf.Tensor2D, canvas: HTMLCanvasElem
   let middle_end = middleLine.argMax().dataSync()[0]
 
 
-  let center = Math.floor((middle_end - middle_start) * 0.25 + middle_start)
+  let center = Math.floor((middle_end - middle_start) * 0.5 + middle_start)
   let centerLine = horizontalCumsum.slice([center, 0], [1, -1]).squeeze()
   let center_start = centerLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax()
   let center_end = centerLine.argMax()
@@ -94,7 +94,7 @@ function scale_to_width(pixels: number, orig_shape = [4032, 3024], mask_shape = 
   return pixels / mask_shape[1] * orig_shape[1]
 }
 
-function scale_to_height(pixels: number, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 35) {
+function scale_to_height(pixels: number, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 20) {
   return pixels / mask_shape[0] * orig_shape[0] / Math.cos(angle * Math.PI / 180)
 }
 
@@ -102,7 +102,7 @@ function pixels_to_cm(pixels: number, distance: number, calibration = 155.42, ca
   return pixels / (calibration * calibration_distance / (distance * 100))
 }
 
-export function convert_to_cm(body_length: number, shoulder_height: number, rump_height: number, distance: number, calibration = 155.42, calibration_distance = 20, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 35) {
+export function convert_to_cm(body_length: number, shoulder_height: number, rump_height: number, distance: number, calibration = 155.42, calibration_distance = 20, orig_shape = [4032, 3024], mask_shape = [640, 480], angle = 20) {
   return [
     pixels_to_cm(scale_to_width(body_length, orig_shape, mask_shape), distance, calibration, calibration_distance),
     pixels_to_cm(scale_to_height(shoulder_height, orig_shape, mask_shape, angle), distance, calibration, calibration_distance),
