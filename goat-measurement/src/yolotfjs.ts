@@ -4,6 +4,8 @@ export class YOLO {
 
   originalWidth: number | null = null;
   originalHeight: number | null = null;
+  scaledOriginalWidth: number | null = null;
+  scaledOriginalHeight: number | null = null;
   inputWidth: number | null = null;
   inputHeight: number | null = null;
   xyxy: number | null = null;
@@ -49,10 +51,14 @@ export class YOLO {
 
     this.originalWidth = imageEl.width
     this.originalHeight = imageEl.height
-    let mx = Math.max(this.originalWidth, this.originalHeight)
+    // TODO: scale image before using it to max 640x640
+    this.scaledOriginalWidth = imageEl.width
+    this.scaledOriginalHeight = imageEl.height
+    let mx = Math.max(this.scaledOriginalWidth, this.scaledOriginalHeight)
 
     if (this.input) {
       this.input.dispose()
+      this.input = null
     }
 
     this.input =
@@ -81,6 +87,7 @@ export class YOLO {
     if (this.output) {
       this.output[0].dispose()
       this.output[1].dispose()
+      this.output = null
     }
     this.output = this.model.execute(this.input!);
     console.log("inference time: ", new Date().getTime() - startTime)
@@ -92,21 +99,28 @@ export class YOLO {
 
     if (this.mask) {
       this.mask.dispose()
+      this.mask = null
+    }
+
+    const detections: tf.Tensor2D = detectionTensor.squeeze(); // Shape: [37, 8400]
+    const segmentationMap: tf.Tensor3D = segmentationTensor.squeeze(); // Shape: [160, 160, 32]
+
+    const confidences = detections.slice([this.xyxy!, 0], [this.classes!, -1]); // Confidence scores for each detection
+    // this sync is a major bottleneck but might also not make an impact at all when resolved
+    const maxIndex = confidences.argMax(1).dataSync()[0]
+    const maxConfidence = confidences.gather(maxIndex, 1).dataSync()[0]
+
+    if (maxConfidence < 0.85) {
+      return
     }
 
     this.mask = tf.tidy(() => {
-      const detections: tf.Tensor2D = detectionTensor.squeeze(); // Shape: [37, 8400]
-      const segmentationMap: tf.Tensor3D = segmentationTensor.squeeze(); // Shape: [160, 160, 32]
+      const maskCoeffs = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze();
+      this.box = new Box(detections.slice([0, maxIndex], [this.xyxy!, 1]).dataSync<any>());
+      const mx = Math.max(this.scaledOriginalHeight!, this.scaledOriginalWidth!);
+      const heightStart = this.scaledOriginalHeight == mx ? 0 : ((mx - this.scaledOriginalHeight!) / 2);
+      const widthStart = this.scaledOriginalWidth == mx ? 0 : ((mx - this.scaledOriginalWidth!) / 2);
 
-      const sliceTime = new Date().getTime()
-      const confidences = detections.slice([this.xyxy!, 0], [this.classes!, -1]); // Confidence scores for each detection
-      // this sync is a major bottleneck but might also not make an impact at all when resolved
-      const maxIndex = confidences.argMax(1).dataSync()[0]
-      const maskCoeffs = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze()
-      this.box = new Box(detections.slice([0, maxIndex], [this.xyxy!, 1]).dataSync<any>())
-      console.log("slice time: ", new Date().getTime() - sliceTime)
-
-      const multTime = new Date().getTime()
       // Reconstruct mask
       let mask: tf.Tensor2D =
         segmentationMap
@@ -119,41 +133,54 @@ export class YOLO {
           .pad([
             [this.box!.topY(), this.inputHeight! - this.box!.topY() - this.box!.height()],
             [this.box!.topX(), this.inputWidth! - this.box!.topX() - this.box!.width()],
-          ])
-      let binary = tf.where<tf.Tensor2D>(mask.greater(0), tf.ones(mask.shape, 'int32'), tf.zeros(mask.shape, 'int32'))
+          ]) // Shape [inputHeight, intputWidth]
+          .slice([heightStart, widthStart], [this.scaledOriginalHeight!, this.scaledOriginalWidth!]);
 
-      console.log("mult time: ", new Date().getTime() - multTime)
-      return binary
+      let binary = tf.where<tf.Tensor2D>(mask.greater(0), tf.ones(mask.shape, 'int32'), tf.zeros(mask.shape, 'int32'));
+      if (this.scaledOriginalWidth != mx) {
+        this.box.x -= (mx - this.scaledOriginalWidth!) / 2;
+      }
+      if (this.scaledOriginalHeight != mx) {
+        this.box.y -= (mx - this.scaledOriginalHeight!) / 2;
+      }
+
+      return binary;
     })
 
-    console.log("postprocess time: ", new Date().getTime() - startTime)
+    console.log("postprocess time: ", new Date().getTime() - startTime);
     return this.mask;
   }
 
 
   async draw(image: HTMLImageElement, canvas: HTMLCanvasElement | null) {
-    if (this.mask == null || this.box == null || this.inputHeight == null || this.inputWidth == null || this.originalHeight == null || this.originalWidth == null)
+    if (this.mask == null || this.box == null || this.inputHeight == null || this.inputWidth == null || this.originalHeight == null || this.originalWidth == null || this.scaledOriginalHeight == null || this.scaledOriginalWidth == null)
       return
 
     let startTime = new Date().getTime()
 
     const newOverlay = tf.tidy(() => {
       let expandedMask = this.mask!.expandDims(-1)
-      let overlay = tf.zeros<tf.Rank.R3>([this.inputWidth!, this.inputHeight!, 4], 'int32') // RGBA
+      let overlay = tf.zeros<tf.Rank.R3>([this.scaledOriginalHeight!, this.scaledOriginalWidth!, 4], 'int32') // RGBA
       return overlay.where<tf.Tensor3D>(expandedMask.less(1), tf.tensor1d([128, 0, 0, 150], 'int32'))
     })
+
+    console.log("scaled", this.scaledOriginalWidth, this.scaledOriginalHeight)
 
     let arr = await tf.browser.toPixels(newOverlay);
     newOverlay.dispose()
     let tempCanvas = document.createElement("canvas")
-    tempCanvas.width = this.inputWidth
-    tempCanvas.height = this.inputHeight
+    tempCanvas.width = this.scaledOriginalWidth
+    tempCanvas.height = this.scaledOriginalHeight
     let tmpCtx = tempCanvas.getContext('2d')!
-    tmpCtx.putImageData(new ImageData(arr, this.inputWidth, this.inputHeight), 0, 0)
+    tmpCtx.putImageData(new ImageData(arr, this.scaledOriginalWidth, this.scaledOriginalHeight), 0, 0)
     if (canvas) {
+      canvas.height = this.scaledOriginalHeight
+      canvas.width = this.scaledOriginalWidth
+      canvas.style.height = `${this.scaledOriginalHeight}px`
+      canvas.style.width = `${this.scaledOriginalWidth}px`
       let ctx = canvas.getContext('2d')!
-      ctx.drawImage(image, 80, 0, this.originalWidth, this.originalHeight)
-      ctx.drawImage(tempCanvas, 0, 0, this.inputWidth, this.inputHeight)
+      ctx.drawImage(image, 0, 0, this.scaledOriginalWidth, this.scaledOriginalHeight)
+      ctx.drawImage(tempCanvas, 0, 0, this.scaledOriginalWidth, this.scaledOriginalHeight)
       ctx.rect(this.box.topX(), this.box.topY(), this.box.w, this.box.h)
       ctx.stroke()
     }

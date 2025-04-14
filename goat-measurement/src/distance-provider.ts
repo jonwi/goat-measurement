@@ -1,6 +1,10 @@
 import { DepthEstimationPipelineOutput, max, min, pipeline, RawImage } from "@huggingface/transformers"
 
-export class DistanceProvider {
+export interface DistanceProvider {
+  distance(image: HTMLImageElement, debugCanvas: HTMLCanvasElement): Promise<number>;
+}
+
+export class DistanceProviderDepth implements DistanceProvider {
   pipe
 
   constructor() {
@@ -38,3 +42,24 @@ export class DistanceProvider {
     return 1.64
   }
 }
+
+export class DistanceProiderStatic implements DistanceProvider {
+
+  async distance(image: HTMLImageElement, debugCanvas: HTMLCanvasElement) {
+    const imageName = image.src
+    if (imageName.includes("Diego")) {
+      return 2.3
+    }
+    if (imageName.includes("Zara")) {
+      return 1.62
+    }
+    if (imageName.includes("Carina")) {
+      return 1.59
+    }
+    if (imageName.includes("Twentyone")) {
+      return 1.64
+    }
+    return 1.5
+  }
+}
+
