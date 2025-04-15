@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs'
 
-async function binary_rle(t: tf.Tensor1D) {
+async function binaryRle(t: tf.Tensor1D) {
   let l = t.shape[0]
   let indices = tf.range(0, t.shape[0], 1, 'int32')
 
@@ -26,7 +26,7 @@ async function binary_rle(t: tf.Tensor1D) {
   return [-1, -1, -1]
 }
 
-export async function body_measurement(mask: tf.Tensor2D, canvas: HTMLCanvasElement | null = null) {
+export async function bodyMeasurement(mask: tf.Tensor2D, canvas: HTMLCanvasElement | null = null) {
   // mask is hxw 640x640
   let height = mask.shape[0]
   let width = mask.shape[1]
@@ -35,7 +35,7 @@ export async function body_measurement(mask: tf.Tensor2D, canvas: HTMLCanvasElem
 
   let lastLine = horizontalCumsum.slice([0, width - 2], [-1, 1])
   let longestLine = lastLine.squeeze().argMax().add(tf.scalar(20, 'int32'))
-  let [start, end, length] = await binary_rle(mask.gather(longestLine).squeeze())
+  let [start, end, length] = await binaryRle(mask.gather(longestLine).squeeze())
   draw(canvas, start, longestLine.dataSync()[0], end, longestLine.dataSync()[0], "red")
 
   let rump = Math.floor(length * 0.75 + start)
@@ -58,7 +58,7 @@ export async function body_measurement(mask: tf.Tensor2D, canvas: HTMLCanvasElem
 
 
   let center = Math.floor((middle_end - middle_start) * 0.60 + middle_start)
-  let [center_start, center_end, body_length] = await binary_rle(mask.gather(center).squeeze())
+  let [center_start, center_end, body_length] = await binaryRle(mask.gather(center).squeeze())
   draw(canvas, center_start, center, center_end, center, "yellow")
 
   let left_section = mask.slice([0, 0], [-1, middle])
@@ -88,25 +88,25 @@ function draw(canvas: HTMLCanvasElement | null, x1: number, y1: number, x2: numb
   }
 }
 
-function scale_to_width(pixels: number, convertOptions: Options) {
+function scaleToWidth(pixels: number, convertOptions: Options) {
   return pixels / convertOptions.mask_shape[1] * convertOptions.orig_shape[1]
 }
 
-function scale_to_height(pixels: number, convertOptions: Options) {
+function scaleToHeight(pixels: number, convertOptions: Options) {
   return pixels / convertOptions.mask_shape[0] * convertOptions.orig_shape[0] / Math.cos(convertOptions.angle * Math.PI / 180)
 }
 
-function pixels_to_cm(pixels: number, convertOptions: Options) {
+function pixelsToCm(pixels: number, convertOptions: Options) {
   return pixels / (convertOptions.calibration * convertOptions.calibration_distance / (convertOptions.distance * 100))
 }
 
-export function convert_to_cm(body_length: number, shoulder_height: number, rump_height: number, convertOptions: ConvertOptions) {
+export function convertToCm(body_length: number, shoulder_height: number, rump_height: number, convertOptions: ConvertOptions) {
   const options = { ...DefaultConvertOptions, ...convertOptions }
   console.log("convert options: ", options)
   return [
-    pixels_to_cm(scale_to_width(body_length, options), options),
-    pixels_to_cm(scale_to_height(shoulder_height, options), options),
-    pixels_to_cm(scale_to_height(rump_height, options), options)
+    pixelsToCm(scaleToWidth(body_length, options), options),
+    pixelsToCm(scaleToHeight(shoulder_height, options), options),
+    pixelsToCm(scaleToHeight(rump_height, options), options)
   ]
 }
 
@@ -130,7 +130,7 @@ type Options = {
 
 const DefaultConvertOptions: Options = {
   distance: 1.5,
-  calibration: 165.85,
+  calibration: 149.85,
   calibration_distance: 20,
   orig_shape: [4032, 3024],
   mask_shape: [640, 480],

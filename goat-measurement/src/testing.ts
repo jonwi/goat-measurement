@@ -1,6 +1,7 @@
 import { AngleProvider } from "./angle-provider"
 import { DistanceProvider } from "./distance-provider"
-import { body_measurement, convert_to_cm } from "./utils"
+import { bodyMeasurement, convertToCm } from "./utils"
+import { predictWeight } from "./weight-prediction"
 import { YOLO } from "./yolotfjs"
 
 export async function testSingle(container: HTMLElement, yolo: YOLO, angleProvider: AngleProvider, distanceProvider: DistanceProvider) {
@@ -167,9 +168,10 @@ async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: 
   const [mask, distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
 
   if (mask != null) {
-    let [bodyLength, shoulderHeight, rumpHeight] = await body_measurement(mask, debugCanvas)
-    const [realBodyLength, realShoulderHeight, realRumpHeight] = convert_to_cm(bodyLength, shoulderHeight, rumpHeight, { distance: distance, angle: angle })
-    testOutput(container, realBodyLength, realShoulderHeight, realRumpHeight, 0, distance, angle)
+    let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, debugCanvas)
+    const [realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(bodyLength, shoulderHeight, rumpHeight, { distance: distance, angle: angle })
+    const weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
+    testOutput(container, realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle)
   }
 }
 

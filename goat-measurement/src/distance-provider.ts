@@ -43,9 +43,9 @@ export class DistanceProviderDepth implements DistanceProvider {
   }
 }
 
-export class DistanceProiderStatic implements DistanceProvider {
+export class DistanceProviderStatic implements DistanceProvider {
 
-  async distance(image: HTMLImageElement, debugCanvas: HTMLCanvasElement) {
+  async distance(image: HTMLImageElement | HTMLVideoElement, debugCanvas: HTMLCanvasElement) {
     const imageName = image.src
     if (imageName.includes("Diego")) {
       return 2.3

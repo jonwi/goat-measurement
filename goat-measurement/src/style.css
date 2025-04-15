@@ -25,8 +25,6 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
 }
@@ -68,7 +66,7 @@ button {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
-  font-size: 1em;
+  font-size: 1vw;
   font-weight: 500;
   font-family: inherit;
   background-color: #1a1a1a;
@@ -141,6 +139,10 @@ button#pwa-refresh {
   display: block;
 }
 
+#app {
+  width: 100%;
+}
+
 #image-container {
   width: 640px;
   height: 640px;
@@ -156,15 +158,15 @@ button#pwa-refresh {
   background-color: red;
   border: white 3px solid;
   border-radius: 50%;
-  width: 3em;
-  height: 3em;
+  width: 9vw;
+  height: 9vw;
   aspect-ratio: 1/1;
 }
 
 #video-container {
   position: relative;
   height: 100%;
-  width: 90vw;
+  width: 90%;
 }
 
 #video {
@@ -174,7 +176,7 @@ button#pwa-refresh {
 
 #overlay-container {
   height: 100%;
-  width: 90vw;
+  width: 100%;
   position: absolute;
   top: 0;
   left: 0;
@@ -186,10 +188,34 @@ button#pwa-refresh {
   height: 100%;
 }
 
+#result-overlay.hidden {
+  display:none;
+}
+
+#result-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display:flex;
+  justify-content: center;
+}
+
+#result-overlay canvas {
+  height: 100%;
+}
+
+#result-overlay-close {
+  color: red;
+  border-radius: 50%;
+  width: 3em;
+  height: 3em;
+  aspect-ratio: 1/1;
+}
+
 #app-container {
   display: flex;
-  height: 99vh;
-  width: 99vw;
 }
 
 #right-controls {

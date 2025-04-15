@@ -32,46 +32,53 @@ export class YOLO {
 
     // cold start to compile the whole network may take a second
     this.model.execute(tf.zeros([1, this.inputHeight, this.inputWidth, 3]));
-    console.log("model loaded in: ", new Date().getTime() - startTime)
-    console.log(tf.getBackend())
+    console.log("model loaded in: ", new Date().getTime() - startTime);
+    console.log(tf.getBackend());
   }
 
-  async predict(imageEl: HTMLImageElement, canvas: HTMLCanvasElement | null = null) {
-    const startTime = new Date().getTime()
-    this.preprocess(imageEl)
-    this.runInference()
-    this.postprocess()
-    await this.draw(imageEl, canvas)
-    console.log("predict time: ", new Date().getTime() - startTime)
-    return this.mask
+  async predict(imageEl: HTMLImageElement | HTMLVideoElement, canvas: HTMLCanvasElement | null = null) {
+    const startTime = new Date().getTime();
+    this.preprocess(imageEl);
+    this.runInference();
+    this.postprocess();
+    await this.draw(imageEl, canvas);
+    console.log("predict time: ", new Date().getTime() - startTime);
+    return this.mask;
   }
 
-  preprocess(imageEl: HTMLImageElement | ImageData) {
-    const startTime = new Date().getTime()
-
-    this.originalWidth = imageEl.width
-    this.originalHeight = imageEl.height
-    // TODO: scale image before using it to max 640x640
-    this.scaledOriginalWidth = imageEl.width
-    this.scaledOriginalHeight = imageEl.height
-    let mx = Math.max(this.scaledOriginalWidth, this.scaledOriginalHeight)
-
+  preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement) {
+    const startTime = new Date().getTime();
     if (this.input) {
-      this.input.dispose()
-      this.input = null
+      this.input.dispose();
+      this.input = null;
     }
 
     this.input =
       tf.tidy(() => {
-        return tf.browser.fromPixels(imageEl)
+        const image = tf.browser.fromPixels(imageEl);
+        this.originalHeight = image.shape[0];
+        this.originalWidth = image.shape[1];
+        let scalingFactor = 1;
+        if (this.originalHeight > this.originalWidth) {
+          scalingFactor = this.inputHeight! / this.originalHeight;
+        } else {
+          scalingFactor = this.inputWidth! / this.originalWidth;
+        }
+        this.scaledOriginalHeight = this.originalHeight * scalingFactor;
+        this.scaledOriginalWidth = this.originalWidth * scalingFactor;
+        const mx = Math.max(this.scaledOriginalWidth, this.scaledOriginalHeight);
+
+        console.log("image sizes:", this.originalHeight, this.originalWidth, this.scaledOriginalHeight, this.scaledOriginalWidth, scalingFactor);
+        return image
+          .resizeBilinear([this.scaledOriginalHeight, this.scaledOriginalWidth])
           .pad([
             [
-              this.originalHeight == mx ? 0 : (mx - this.originalHeight!) / 2,
-              this.originalHeight == mx ? 0 : (mx - this.originalHeight!) / 2
+              this.scaledOriginalHeight == mx ? 0 : (mx - this.scaledOriginalHeight!) / 2,
+              this.scaledOriginalHeight == mx ? 0 : (mx - this.scaledOriginalHeight!) / 2
             ],
             [
-              this.originalWidth == mx ? 0 : (mx - this.originalWidth!) / 2,
-              this.originalWidth == mx ? 0 : (mx - this.originalWidth!) / 2
+              this.scaledOriginalWidth == mx ? 0 : (mx - this.scaledOriginalWidth!) / 2,
+              this.scaledOriginalWidth == mx ? 0 : (mx - this.scaledOriginalWidth!) / 2
             ],
             [0, 0]
           ])
@@ -79,7 +86,7 @@ export class YOLO {
           .expandDims(0)
           .toFloat().div(tf.scalar(255));
       })
-    console.log("preprocess time: ", new Date().getTime() - startTime)
+    console.log("preprocess time: ", new Date().getTime() - startTime);
   }
 
   runInference() {
@@ -111,6 +118,7 @@ export class YOLO {
     const maxConfidence = confidences.gather(maxIndex, 1).dataSync()[0]
 
     if (maxConfidence < 0.85) {
+      console.log(`max confidence is only ${maxConfidence}, therefore the will be no detection.`)
       return
     }
 
@@ -152,7 +160,7 @@ export class YOLO {
   }
 
 
-  async draw(image: HTMLImageElement, canvas: HTMLCanvasElement | null) {
+  async draw(image: HTMLImageElement | HTMLVideoElement, canvas: HTMLCanvasElement | null) {
     if (this.mask == null || this.box == null || this.inputHeight == null || this.inputWidth == null || this.originalHeight == null || this.originalWidth == null || this.scaledOriginalHeight == null || this.scaledOriginalWidth == null)
       return
 
