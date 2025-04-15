@@ -1,74 +1,74 @@
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '@tensorflow/tfjs'
 
 export class YOLO {
 
-  originalWidth: number | null = null;
-  originalHeight: number | null = null;
-  scaledOriginalWidth: number | null = null;
-  scaledOriginalHeight: number | null = null;
-  inputWidth: number | null = null;
-  inputHeight: number | null = null;
-  xyxy: number | null = null;
-  classes: number | null = null;
-  numMasks: number | null = null;
-  maskWidth: number | null = null;
-  maskHeight: number | null = null;
+  originalWidth: number | null = null
+  originalHeight: number | null = null
+  scaledOriginalWidth: number | null = null
+  scaledOriginalHeight: number | null = null
+  inputWidth: number | null = null
+  inputHeight: number | null = null
+  xyxy: number | null = null
+  classes: number | null = null
+  numMasks: number | null = null
+  maskWidth: number | null = null
+  maskHeight: number | null = null
 
-  box: Box | null = null;
+  box: Box | null = null
 
-  model: any | null = null;
-  output: [tf.Tensor, tf.Tensor] | null = null;
-  input: tf.Tensor | null = null;
+  model: any | null = null
+  output: [tf.Tensor, tf.Tensor] | null = null
+  input: tf.Tensor | null = null
   // 2d tensor with [maskHeight x maskWidth]
-  mask: tf.Tensor2D | null = null;
+  mask: tf.Tensor2D | null = null
 
   async loadModel() {
-    const startTime = new Date().getTime();
+    const startTime = new Date().getTime()
 
-    this.model = await tf.loadGraphModel('/model/model.json');
-    [this.inputHeight, this.inputWidth] = [640, 640];
-    [this.xyxy, this.classes, this.numMasks] = [4, 1, 32];
-    [this.maskWidth, this.maskHeight] = [160, 160];
+    this.model = await tf.loadGraphModel('/model/model.json')
+      ;[this.inputHeight, this.inputWidth] = [640, 640]
+      ;[this.xyxy, this.classes, this.numMasks] = [4, 1, 32]
+      ;[this.maskWidth, this.maskHeight] = [160, 160]
 
     // cold start to compile the whole network may take a second
-    this.model.execute(tf.zeros([1, this.inputHeight, this.inputWidth, 3]));
-    console.log("model loaded in: ", new Date().getTime() - startTime);
-    console.log(tf.getBackend());
+    this.model.execute(tf.zeros([1, this.inputHeight, this.inputWidth, 3]))
+    console.log("model loaded in: ", new Date().getTime() - startTime)
+    console.log(tf.getBackend())
   }
 
   async predict(imageEl: HTMLImageElement | HTMLVideoElement, canvas: HTMLCanvasElement | null = null) {
-    const startTime = new Date().getTime();
-    this.preprocess(imageEl);
-    this.runInference();
-    this.postprocess();
-    await this.draw(imageEl, canvas);
-    console.log("predict time: ", new Date().getTime() - startTime);
-    return this.mask;
+    const startTime = new Date().getTime()
+    this.preprocess(imageEl)
+    this.runInference()
+    this.postprocess()
+    await this.draw(imageEl, canvas)
+    console.log("predict time: ", new Date().getTime() - startTime)
+    return this.mask
   }
 
   preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement) {
-    const startTime = new Date().getTime();
+    const startTime = new Date().getTime()
     if (this.input) {
-      this.input.dispose();
-      this.input = null;
+      this.input.dispose()
+      this.input = null
     }
 
     this.input =
       tf.tidy(() => {
-        const image = tf.browser.fromPixels(imageEl);
-        this.originalHeight = image.shape[0];
-        this.originalWidth = image.shape[1];
-        let scalingFactor = 1;
+        const image = tf.browser.fromPixels(imageEl)
+        this.originalHeight = image.shape[0]
+        this.originalWidth = image.shape[1]
+        let scalingFactor = 1
         if (this.originalHeight > this.originalWidth) {
-          scalingFactor = this.inputHeight! / this.originalHeight;
+          scalingFactor = this.inputHeight! / this.originalHeight
         } else {
-          scalingFactor = this.inputWidth! / this.originalWidth;
+          scalingFactor = this.inputWidth! / this.originalWidth
         }
-        this.scaledOriginalHeight = this.originalHeight * scalingFactor;
-        this.scaledOriginalWidth = this.originalWidth * scalingFactor;
-        const mx = Math.max(this.scaledOriginalWidth, this.scaledOriginalHeight);
+        this.scaledOriginalHeight = this.originalHeight * scalingFactor
+        this.scaledOriginalWidth = this.originalWidth * scalingFactor
+        const mx = Math.max(this.scaledOriginalWidth, this.scaledOriginalHeight)
 
-        console.log("image sizes:", this.originalHeight, this.originalWidth, this.scaledOriginalHeight, this.scaledOriginalWidth, scalingFactor);
+        console.log("image sizes:", this.originalHeight, this.originalWidth, this.scaledOriginalHeight, this.scaledOriginalWidth, scalingFactor)
         return image
           .resizeBilinear([this.scaledOriginalHeight, this.scaledOriginalWidth])
           .pad([
@@ -84,9 +84,9 @@ export class YOLO {
           ])
           .resizeNearestNeighbor([this.inputWidth!, this.inputHeight!])
           .expandDims(0)
-          .toFloat().div(tf.scalar(255));
+          .toFloat().div(tf.scalar(255))
       })
-    console.log("preprocess time: ", new Date().getTime() - startTime);
+    console.log("preprocess time: ", new Date().getTime() - startTime)
   }
 
   runInference() {
@@ -96,7 +96,7 @@ export class YOLO {
       this.output[1].dispose()
       this.output = null
     }
-    this.output = this.model.execute(this.input!);
+    this.output = this.model.execute(this.input!)
     console.log("inference time: ", new Date().getTime() - startTime)
   }
 
@@ -109,10 +109,10 @@ export class YOLO {
       this.mask = null
     }
 
-    const detections: tf.Tensor2D = detectionTensor.squeeze(); // Shape: [37, 8400]
-    const segmentationMap: tf.Tensor3D = segmentationTensor.squeeze(); // Shape: [160, 160, 32]
+    const detections: tf.Tensor2D = detectionTensor.squeeze() // Shape: [37, 8400]
+    const segmentationMap: tf.Tensor3D = segmentationTensor.squeeze() // Shape: [160, 160, 32]
 
-    const confidences = detections.slice([this.xyxy!, 0], [this.classes!, -1]); // Confidence scores for each detection
+    const confidences = detections.slice([this.xyxy!, 0], [this.classes!, -1]) // Confidence scores for each detection
     // this sync is a major bottleneck but might also not make an impact at all when resolved
     const maxIndex = confidences.argMax(1).dataSync()[0]
     const maxConfidence = confidences.gather(maxIndex, 1).dataSync()[0]
@@ -123,11 +123,11 @@ export class YOLO {
     }
 
     this.mask = tf.tidy(() => {
-      const maskCoeffs = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze();
-      this.box = new Box(detections.slice([0, maxIndex], [this.xyxy!, 1]).dataSync<any>());
-      const mx = Math.max(this.scaledOriginalHeight!, this.scaledOriginalWidth!);
-      const heightStart = this.scaledOriginalHeight == mx ? 0 : ((mx - this.scaledOriginalHeight!) / 2);
-      const widthStart = this.scaledOriginalWidth == mx ? 0 : ((mx - this.scaledOriginalWidth!) / 2);
+      const maskCoeffs = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze()
+      this.box = new Box(detections.slice([0, maxIndex], [this.xyxy!, 1]).dataSync<any>())
+      const mx = Math.max(this.scaledOriginalHeight!, this.scaledOriginalWidth!)
+      const heightStart = this.scaledOriginalHeight == mx ? 0 : ((mx - this.scaledOriginalHeight!) / 2)
+      const widthStart = this.scaledOriginalWidth == mx ? 0 : ((mx - this.scaledOriginalWidth!) / 2)
 
       // Reconstruct mask
       let mask: tf.Tensor2D =
@@ -142,21 +142,21 @@ export class YOLO {
             [this.box!.topY(), this.inputHeight! - this.box!.topY() - this.box!.height()],
             [this.box!.topX(), this.inputWidth! - this.box!.topX() - this.box!.width()],
           ]) // Shape [inputHeight, intputWidth]
-          .slice([heightStart, widthStart], [this.scaledOriginalHeight!, this.scaledOriginalWidth!]);
+          .slice([heightStart, widthStart], [this.scaledOriginalHeight!, this.scaledOriginalWidth!])
 
-      let binary = tf.where<tf.Tensor2D>(mask.greater(0), tf.ones(mask.shape, 'int32'), tf.zeros(mask.shape, 'int32'));
+      let binary = tf.where<tf.Tensor2D>(mask.greater(0), tf.ones(mask.shape, 'int32'), tf.zeros(mask.shape, 'int32'))
       if (this.scaledOriginalWidth != mx) {
-        this.box.x -= (mx - this.scaledOriginalWidth!) / 2;
+        this.box.x -= (mx - this.scaledOriginalWidth!) / 2
       }
       if (this.scaledOriginalHeight != mx) {
-        this.box.y -= (mx - this.scaledOriginalHeight!) / 2;
+        this.box.y -= (mx - this.scaledOriginalHeight!) / 2
       }
 
-      return binary;
+      return binary
     })
 
-    console.log("postprocess time: ", new Date().getTime() - startTime);
-    return this.mask;
+    console.log("postprocess time: ", new Date().getTime() - startTime)
+    return this.mask
   }
 
 
@@ -174,7 +174,7 @@ export class YOLO {
 
     console.log("scaled", this.scaledOriginalWidth, this.scaledOriginalHeight)
 
-    let arr = await tf.browser.toPixels(newOverlay);
+    let arr = await tf.browser.toPixels(newOverlay)
     newOverlay.dispose()
     let tempCanvas = document.createElement("canvas")
     tempCanvas.width = this.scaledOriginalWidth

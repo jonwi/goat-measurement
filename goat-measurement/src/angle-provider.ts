@@ -1,5 +1,5 @@
 export class AngleProvider {
-  lastAngle: number | null = null;
+  lastAngle: number | null = null
 
   constructor() {
     window.addEventListener("deviceorientation", (event) => {

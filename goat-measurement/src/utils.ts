@@ -111,21 +111,21 @@ export function convertToCm(body_length: number, shoulder_height: number, rump_h
 }
 
 type ConvertOptions = {
-  distance?: number;
-  calibration?: number;
-  calibration_distance?: number;
-  orig_shape?: number[];
-  mask_shape?: number[];
-  angle?: number;
+  distance?: number
+  calibration?: number
+  calibration_distance?: number
+  orig_shape?: number[]
+  mask_shape?: number[]
+  angle?: number
 }
 
 type Options = {
-  distance: number;
-  calibration: number;
-  calibration_distance: number;
-  orig_shape: number[];
-  mask_shape: number[];
-  angle: number;
+  distance: number
+  calibration: number
+  calibration_distance: number
+  orig_shape: number[]
+  mask_shape: number[]
+  angle: number
 }
 
 const DefaultConvertOptions: Options = {
