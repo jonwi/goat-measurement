@@ -121,6 +121,7 @@ export class YOLO {
       console.log(`max confidence is only ${maxConfidence}, therefore the will be no detection.`)
       return
     }
+    console.log("maxConfidence", maxConfidence)
 
     this.mask = tf.tidy(() => {
       const maskCoeffs = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze()
@@ -137,7 +138,11 @@ export class YOLO {
           .expandDims(-1)
           .resizeBilinear([this.inputHeight!, this.inputWidth!], false, true)
           .squeeze()
-          .slice([this.box!.topY(), this.box!.topX()], [this.box!.height(), this.box!.width()])
+          .slice(
+            [this.box!.topY(), this.box!.topX()],
+            [Math.min(this.box!.height(), this.inputHeight!),
+            Math.min(this.box!.width(), this.inputWidth!),
+            ])
           .pad([
             [this.box!.topY(), this.inputHeight! - this.box!.topY() - this.box!.height()],
             [this.box!.topX(), this.inputWidth! - this.box!.topX() - this.box!.width()],

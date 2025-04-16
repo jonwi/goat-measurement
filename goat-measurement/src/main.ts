@@ -8,6 +8,11 @@ import { testAll, testSingle } from './testing.ts'
 import { predictWeight } from './weight-prediction.ts'
 import { bodyMeasurement, convertToCm } from './utils.ts'
 
+type Direction = "left" | "right"
+type AppState = {
+  direction: Direction
+}
+
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
 <div>
@@ -20,6 +25,7 @@ app.innerHTML = `
   </div>
   <div id="app-container">
     <div id="video-container">
+      <div id="toast-container"></div>
       <video id="video"></video>
       <div id="overlay-container">
         <img id="overlay" src="/overlay2.png"/>
@@ -32,6 +38,7 @@ app.innerHTML = `
       </div>
     </div>
     <div id="right-controls">
+      <button id="toggleDirection">Toggle Direction</button>
       <button id="mainButton"></button>
       <button id="imageBtn">Test</button>
       <button id="clearTest">Clear Test</button>
@@ -52,6 +59,10 @@ const resultClose = document.querySelector<HTMLButtonElement>("#result-overlay-c
 const resultOverlay = document.querySelector("#result-overlay")!
 const valueContainer = resultOverlay.querySelector("#value-container")!
 const clearTest = document.querySelector<HTMLButtonElement>("#clearTest")!
+const overlayImage = document.querySelector<HTMLImageElement>("#overlay")!
+const toastContainer = document.querySelector<HTMLDivElement>("#toast-container")!
+const directionButton = document.querySelector<HTMLButtonElement>("#toggleDirection")!
+const state: AppState = { direction: "left" }
 
 appContainer.style.width = `${window.innerWidth - 10}px`
 appContainer.style.height = `${window.innerHeight - 10}px`
@@ -72,11 +83,26 @@ clearTest.addEventListener("click", () => {
   testContainer.innerHTML = ""
 })
 
+directionButton.addEventListener("click", () => {
+  if (state.direction == "right") {
+    state.direction = "left"
+    overlayImage.style.transform = ""
+  } else {
+    state.direction = "right"
+    overlayImage.style.transform = "scaleX(-1)"
+  }
+})
+
 navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   console.log(perm)
   if (perm.state != 'denied') {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 640 } } })!
-    console.log(stream.getVideoTracks())
+    const streamSettings = stream.getVideoTracks()[0].getSettings()
+    resizeOverlayImage(video.offsetWidth, video.offsetHeight, streamSettings.width ?? Number.MAX_VALUE, streamSettings.height ?? Number.MAX_VALUE, streamSettings.aspectRatio ?? 1)
+    window.addEventListener("resize", () => {
+      resizeOverlayImage(video.offsetWidth, video.offsetHeight, streamSettings.width ?? Number.MAX_VALUE, streamSettings.height ?? Number.MAX_VALUE, streamSettings.aspectRatio ?? 1)
+    })
+
     video.srcObject = stream
     video.onloadedmetadata = () => {
       video.play()
@@ -90,9 +116,12 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
       const distanceProm = distanceProvider.distance(video, depthCanvas)
       const angleProm = angleProvider.angle()
 
-      const [mask, distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
+      let [mask, distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
 
       if (mask != null) {
+        if (state.direction == "right") {
+          mask = mask.reverse(1)
+        }
         let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, resultCanvas)
         const [realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(bodyLength, shoulderHeight, rumpHeight, { distance: distance, angle: angle })
         const weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
@@ -106,6 +135,8 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
           <div>angle: ${angle.toFixed(2)}</div>
           `
         showResultOverlay()
+      } else {
+        toast("<span>Keine Ziege erkannt</span>")
       }
     })
   }
@@ -127,6 +158,28 @@ function showResultOverlay() {
 
 function hideResultOverlay() {
   resultOverlay.classList.add("hidden")
+}
+
+function resizeOverlayImage(videoWidth: number, videoHeight: number, streamWidth: number, streamHeight: number, aspectRatio: number) {
+  const minSize = Math.min(videoWidth, videoHeight)
+  if (minSize < streamWidth || minSize < streamHeight) {
+    // TODO: check if height or width restricted. almost always it will be height because of screen.
+    overlayImage.style.width = `${minSize / aspectRatio}px`
+    overlayImage.style.height = `${minSize}px`
+  } else {
+    overlayImage.style.width = `${streamWidth}px`
+    overlayImage.style.height = `${streamHeight}px`
+  }
+}
+
+function toast(html: string) {
+  const toastElement = document.createElement("div")
+  toastElement.classList.add("toast")
+  toastElement.innerHTML = html
+  toastContainer.appendChild(toastElement)
+  setTimeout(() => {
+    toastContainer.removeChild(toastElement)
+  }, 3000)
 }
 
 initPWA(app)

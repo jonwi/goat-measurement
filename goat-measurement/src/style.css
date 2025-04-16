@@ -250,3 +250,22 @@ button#pwa-refresh {
 #test {
   width: 200vw;
 }
+
+#toast-container {
+  display:flex;
+  flex-direction: column;
+  align-items: center;
+  position: absolute;
+  width: 100%;
+  z-index: 100;
+  margin-top: 5em;
+}
+
+.toast {
+  background-color: #242424;
+  border-radius: 3em;
+  border: .1em white solid;
+  padding: 2em;
+  color: white;
+  display: inline-block;
+}
