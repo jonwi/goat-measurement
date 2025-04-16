@@ -1,5 +1,5 @@
 import './style.css'
-import { DistanceProviderStatic } from './distance-provider.ts'
+import { DistanceProviderInput, DistanceProviderStatic } from './distance-provider.ts'
 import { initPWA } from './pwa.ts'
 import { YOLO } from './yolotfjs.ts'
 import './utils.ts'
@@ -11,6 +11,7 @@ import { bodyMeasurement, convertToCm } from './utils.ts'
 type Direction = "left" | "right"
 type AppState = {
   direction: Direction
+  calibration: number
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -42,6 +43,7 @@ app.innerHTML = `
       <button id="mainButton"></button>
       <button id="imageBtn">Test</button>
       <button id="clearTest">Clear Test</button>
+      <input id="calibrationValue" />
     </div>
   </div>
   <div id="test">
@@ -62,7 +64,13 @@ const clearTest = document.querySelector<HTMLButtonElement>("#clearTest")!
 const overlayImage = document.querySelector<HTMLImageElement>("#overlay")!
 const toastContainer = document.querySelector<HTMLDivElement>("#toast-container")!
 const directionButton = document.querySelector<HTMLButtonElement>("#toggleDirection")!
-const state: AppState = { direction: "left" }
+const calibrationInput = document.querySelector<HTMLInputElement>("#calibrationValue")!
+
+const state: AppState = { direction: "left", calibration: 149.85 }
+calibrationInput.addEventListener("change", () => {
+  state.calibration = parseFloat(calibrationInput.value)
+})
+calibrationInput.value = "149.85"
 
 appContainer.style.width = `${window.innerWidth - 10}px`
 appContainer.style.height = `${window.innerHeight - 10}px`
@@ -93,8 +101,12 @@ directionButton.addEventListener("click", () => {
   }
 })
 
+let yolo = new YOLO()
+const yoloProm = yolo.loadModel()
+const distanceProvider = new DistanceProviderInput()
+const angleProvider = new AngleProvider()
+
 navigator.permissions.query({ name: "camera" }).then(async (perm) => {
-  console.log(perm)
   if (perm.state != 'denied') {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 640 } } })!
     const streamSettings = stream.getVideoTracks()[0].getSettings()
@@ -123,7 +135,12 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
           mask = mask.reverse(1)
         }
         let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, resultCanvas)
-        const [realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(bodyLength, shoulderHeight, rumpHeight, { distance: distance, angle: angle })
+        const [realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(
+          bodyLength,
+          shoulderHeight,
+          rumpHeight,
+          { distance: distance, angle: angle, calibration: state.calibration }
+        )
         const weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
         valueContainer.innerHTML =
           `
@@ -142,10 +159,6 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   }
 })
 
-let yolo = new YOLO()
-const yoloProm = yolo.loadModel()
-const distanceProvider = new DistanceProviderStatic()
-const angleProvider = new AngleProvider()
 
 imageButton.addEventListener('click', async () => {
   await yoloProm

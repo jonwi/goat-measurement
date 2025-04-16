@@ -63,3 +63,42 @@ export class DistanceProviderStatic implements DistanceProvider {
   }
 }
 
+export class DistanceProviderInput implements DistanceProvider {
+  async distance(image: HTMLImageElement | HTMLVideoElement, debugCanvas: HTMLCanvasElement) {
+    const inputContainer = document.createElement("div")
+    const input = document.createElement("input")
+    const acceptButton = document.createElement("button")
+    acceptButton.innerText = "Accept"
+    inputContainer.appendChild(input)
+    inputContainer.appendChild(acceptButton)
+    inputContainer.classList.add("input")
+    document.body.appendChild(inputContainer)
+
+    const imageName = image.src
+    let initValue = 1.5
+    if (imageName.includes("Diego")) {
+      initValue = 2.3
+    }
+    if (imageName.includes("Zara")) {
+      initValue = 1.62
+    }
+    if (imageName.includes("Carina")) {
+      initValue = 1.59
+    }
+    if (imageName.includes("Twentyone")) {
+      initValue = 1.64
+    }
+    input.value = `${initValue}`
+
+    const distance = await new Promise<number>((resolve, _) => {
+      acceptButton.addEventListener("click", () => {
+        const n = Number.parseFloat(input.value)
+        if (n != Number.NaN) {
+          resolve(+input.value)
+        }
+      })
+    })
+    document.body.removeChild(inputContainer)
+    return distance
+  }
+}
