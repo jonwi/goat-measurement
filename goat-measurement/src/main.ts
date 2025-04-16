@@ -26,12 +26,15 @@ app.innerHTML = `
       </div>
       <div id="result-overlay" class="hidden">
         <canvas id="result-canvas"></canvas>
+        <div id="value-container">
+        </div>
         <button id="result-overlay-close">X</button>
       </div>
     </div>
     <div id="right-controls">
       <button id="mainButton"></button>
-      <button id="imageBtn">Take Photo</button>
+      <button id="imageBtn">Test</button>
+      <button id="clearTest">Clear Test</button>
     </div>
   </div>
   <div id="test">
@@ -47,6 +50,8 @@ const testContainer = document.querySelector<HTMLElement>("#test")!
 const resultCanvas = document.querySelector<HTMLCanvasElement>("canvas#result-canvas")!
 const resultClose = document.querySelector<HTMLButtonElement>("#result-overlay-close")!
 const resultOverlay = document.querySelector("#result-overlay")!
+const valueContainer = resultOverlay.querySelector("#value-container")!
+const clearTest = document.querySelector<HTMLButtonElement>("#clearTest")!
 
 appContainer.style.width = `${window.innerWidth - 10}px`
 appContainer.style.height = `${window.innerHeight - 10}px`
@@ -63,6 +68,10 @@ resultClose.addEventListener("click", () => {
   }
 })
 
+clearTest.addEventListener("click", () => {
+  testContainer.innerHTML = ""
+})
+
 navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   console.log(perm)
   if (perm.state != 'denied') {
@@ -74,8 +83,6 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
     }
 
     mainButton.addEventListener("click", async () => {
-      const container = document.createElement("div")
-      const debugCanvas = document.createElement("canvas")
       const depthCanvas = document.createElement("canvas")
 
       await yoloProm
@@ -89,8 +96,7 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
         let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, resultCanvas)
         const [realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(bodyLength, shoulderHeight, rumpHeight, { distance: distance, angle: angle })
         const weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
-        const outputContainer = document.createElement("div")
-        outputContainer.innerHTML =
+        valueContainer.innerHTML =
           `
           <div>Body length: ${bodyLength.toFixed(2)}</div>
           <div>Shoulder height: ${shoulderHeight.toFixed(2)}</div>
@@ -99,9 +105,6 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
           <div>distance: ${distance.toFixed(2)}</div>
           <div>angle: ${angle.toFixed(2)}</div>
           `
-        container.appendChild(debugCanvas)
-        container.appendChild(outputContainer)
-        testContainer.appendChild(container)
         showResultOverlay()
       }
     })

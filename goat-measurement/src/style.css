@@ -215,6 +215,13 @@ button#pwa-refresh {
   aspect-ratio: 1/1;
 }
 
+#result-overlay #value-container {
+  background-color: #242424;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+}
+
 #app-container {
   display: flex;
 }
