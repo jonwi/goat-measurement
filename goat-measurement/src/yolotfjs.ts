@@ -19,6 +19,7 @@ export class YOLO {
   model: any | null = null
   output: [tf.Tensor, tf.Tensor] | null = null
   input: tf.Tensor | null = null
+  inputImage: tf.Tensor3D | null = null
   // 2d tensor with [maskHeight x maskWidth]
   mask: tf.Tensor2D | null = null
 
@@ -41,7 +42,7 @@ export class YOLO {
     this.preprocess(imageEl)
     this.runInference()
     this.postprocess()
-    await this.draw(imageEl, canvas)
+    await this.draw(canvas)
     console.log("predict time: ", new Date().getTime() - startTime)
     return this.mask
   }
@@ -53,9 +54,15 @@ export class YOLO {
       this.input = null
     }
 
+    if (this.inputImage) {
+      this.inputImage.dispose()
+      this.inputImage = null
+    }
+    this.inputImage = tf.browser.fromPixels(imageEl)
+
     this.input =
       tf.tidy(() => {
-        const image = tf.browser.fromPixels(imageEl)
+        const image = this.inputImage!
         this.originalHeight = image.shape[0]
         this.originalWidth = image.shape[1]
         let scalingFactor = 1
@@ -165,8 +172,8 @@ export class YOLO {
   }
 
 
-  async draw(image: HTMLImageElement | HTMLVideoElement, canvas: HTMLCanvasElement | null) {
-    if (this.mask == null || this.box == null || this.inputHeight == null || this.inputWidth == null || this.originalHeight == null || this.originalWidth == null || this.scaledOriginalHeight == null || this.scaledOriginalWidth == null)
+  async draw(canvas: HTMLCanvasElement | null) {
+    if (this.mask == null || this.box == null || this.inputHeight == null || this.inputWidth == null || this.originalHeight == null || this.originalWidth == null || this.scaledOriginalHeight == null || this.scaledOriginalWidth == null || this.inputImage == null)
       return
 
     let startTime = new Date().getTime()
@@ -179,20 +186,21 @@ export class YOLO {
 
     console.log("scaled", this.scaledOriginalWidth, this.scaledOriginalHeight)
 
-    let arr = await tf.browser.toPixels(newOverlay)
-    newOverlay.dispose()
-    let tempCanvas = document.createElement("canvas")
-    tempCanvas.width = this.scaledOriginalWidth
-    tempCanvas.height = this.scaledOriginalHeight
-    let tmpCtx = tempCanvas.getContext('2d')!
-    tmpCtx.putImageData(new ImageData(arr, this.scaledOriginalWidth, this.scaledOriginalHeight), 0, 0)
     if (canvas) {
+      let arr = await tf.browser.toPixels(newOverlay)
+      newOverlay.dispose()
+      let tempCanvas = document.createElement("canvas")
+      tempCanvas.width = this.scaledOriginalWidth
+      tempCanvas.height = this.scaledOriginalHeight
+      let tmpCtx = tempCanvas.getContext('2d')!
+      tmpCtx.putImageData(new ImageData(arr, this.scaledOriginalWidth, this.scaledOriginalHeight), 0, 0)
       canvas.height = this.scaledOriginalHeight
       canvas.width = this.scaledOriginalWidth
       canvas.style.height = `${this.scaledOriginalHeight}px`
       canvas.style.width = `${this.scaledOriginalWidth}px`
       let ctx = canvas.getContext('2d')!
-      ctx.drawImage(image, 0, 0, this.scaledOriginalWidth, this.scaledOriginalHeight)
+      // ctx.drawImage(image, 0, 0, this.scaledOriginalWidth, this.scaledOriginalHeight)
+      ctx.putImageData(new ImageData(await tf.browser.toPixels(this.inputImage), this.scaledOriginalWidth, this.scaledOriginalHeight), 0, 0)
       ctx.drawImage(tempCanvas, 0, 0, this.scaledOriginalWidth, this.scaledOriginalHeight)
       ctx.rect(this.box.topX(), this.box.topY(), this.box.w, this.box.h)
       ctx.stroke()
