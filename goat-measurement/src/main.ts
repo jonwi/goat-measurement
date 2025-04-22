@@ -108,7 +108,7 @@ const angleProvider = new AngleProvider()
 
 navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   if (perm.state != 'denied') {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 640 } } })!
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 640 } } })!
     const streamSettings = stream.getVideoTracks()[0].getSettings()
     resizeOverlayImage(video.offsetWidth, video.offsetHeight, streamSettings.width ?? Number.MAX_VALUE, streamSettings.height ?? Number.MAX_VALUE, streamSettings.aspectRatio ?? 1)
     window.addEventListener("resize", () => {
