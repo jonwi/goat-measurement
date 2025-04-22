@@ -44,6 +44,7 @@ app.innerHTML = `
       <button id="imageBtn">Test</button>
       <button id="clearTest">Clear Test</button>
       <input id="calibrationValue" />
+      <div id="angle"></div>
     </div>
   </div>
   <div id="test">
@@ -65,6 +66,7 @@ const overlayImage = document.querySelector<HTMLImageElement>("#overlay")!
 const toastContainer = document.querySelector<HTMLDivElement>("#toast-container")!
 const directionButton = document.querySelector<HTMLButtonElement>("#toggleDirection")!
 const calibrationInput = document.querySelector<HTMLInputElement>("#calibrationValue")!
+const angleContainer = document.querySelector<HTMLDivElement>("#angle")!
 
 const state: AppState = { direction: "left", calibration: 149.85 }
 calibrationInput.addEventListener("change", () => {
@@ -105,6 +107,11 @@ let yolo = new YOLO()
 const yoloProm = yolo.loadModel()
 const distanceProvider = new DistanceProviderInput()
 const angleProvider = new AngleProvider()
+
+setInterval(async () => {
+  const angle = await angleProvider.angle()
+  angleContainer.innerText = `${angle.toFixed(2)}`
+}, 100)
 
 navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   if (perm.state != 'denied') {

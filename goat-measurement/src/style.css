@@ -298,3 +298,7 @@ button#pwa-refresh {
   transition: border-color 0.25s;
   color: white;
 }
+
+#angle {
+  color: white;
+}
