@@ -1,10 +1,10 @@
 import './style.css'
-import { DistanceProviderInput, DistanceProviderStatic } from './distance-provider.ts'
+import { DistanceProviderInput } from './distance-provider.ts'
 import { initPWA } from './pwa.ts'
 import { YOLO } from './yolotfjs.ts'
 import './utils.ts'
 import { AngleProvider } from './angle-provider.ts'
-import { testAll, testSingle } from './testing.ts'
+import { testAll } from './testing.ts'
 import { predictWeight } from './weight-prediction.ts'
 import { bodyMeasurement, convertToCm } from './utils.ts'
 
@@ -129,9 +129,10 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
 
     mainButton.addEventListener("click", async () => {
       const depthCanvas = document.createElement("canvas")
+      const imageCanvas = document.createElement("canvas")
 
       await yoloProm
-      const maskProm = yolo.predict(video, resultCanvas)
+      const maskProm = yolo.predict(video, imageCanvas, resultCanvas)
       const distanceProm = distanceProvider.distance(video, depthCanvas)
       const angleProm = angleProvider.angle()
 
@@ -151,18 +152,33 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
         const weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
         valueContainer.innerHTML =
           `
-          <div>Body length: ${bodyLength.toFixed(2)}</div>
-          <div>Shoulder height: ${shoulderHeight.toFixed(2)}</div>
-          <div>rump height: ${rumpHeight.toFixed(2)}</div>
-          <div>weight: ${weight.toFixed(2)}</div>
-          <div>distance: ${distance.toFixed(2)}</div>
-          <div>angle: ${angle.toFixed(2)}</div>
+          <div class="container">Body length: ${bodyLength.toFixed(2)}</div>
+          <div class="container">Shoulder height: ${shoulderHeight.toFixed(2)}</div>
+          <div class="container">rump height: ${rumpHeight.toFixed(2)}</div>
+          <div class="container">weight: ${weight.toFixed(2)}</div>
+          <div class="container">distance: ${distance.toFixed(2)}</div>
+          <div class="container">angle: ${angle.toFixed(2)}</div>
+          <button>Send Data</button>
           `
         showResultOverlay()
+
+        valueContainer.querySelector("button")?.addEventListener("click", () => {
+          sendData({
+            bodyLength: bodyLength,
+            rumpHeight: rumpHeight,
+            shoulderHeight: shoulderHeight,
+            weight: weight,
+            distance: distance,
+            angle: angle,
+            image: imageCanvas.toDataURL()
+          })
+        })
       } else {
         toast("<span>Keine Ziege erkannt</span>")
       }
     })
+  } else {
+    toast("camera permission denied")
   }
 })
 
@@ -200,6 +216,40 @@ function toast(html: string) {
   setTimeout(() => {
     toastContainer.removeChild(toastElement)
   }, 3000)
+}
+
+
+type Payload = {
+  bodyLength: number
+  shoulderHeight: number
+  rumpHeight: number
+  image: string
+  weight: number
+  distance: number
+  angle: number
+}
+
+async function sendData(payload: Payload) {
+  const request = new Request("http://localhost:8080", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  })
+
+  try {
+    const result = await fetch(request)
+    console.log(result)
+    if (result.ok) {
+      toast("successfully send")
+    } else {
+      toast("error while sending")
+    }
+  } catch (e) {
+    toast("error while sending")
+    console.log(e)
+  }
 }
 
 initPWA(app)

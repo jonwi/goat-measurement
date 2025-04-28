@@ -37,9 +37,9 @@ export class YOLO {
     console.log(tf.getBackend())
   }
 
-  async predict(imageEl: HTMLImageElement | HTMLVideoElement, canvas: HTMLCanvasElement | null = null) {
+  async predict(imageEl: HTMLImageElement | HTMLVideoElement, imageCanvas: HTMLCanvasElement, canvas: HTMLCanvasElement | null = null) {
     const startTime = new Date().getTime()
-    this.preprocess(imageEl)
+    this.preprocess(imageEl, imageCanvas)
     this.runInference()
     this.postprocess()
     await this.draw(canvas)
@@ -47,7 +47,7 @@ export class YOLO {
     return this.mask
   }
 
-  preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement) {
+  preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement, imageCanvas: HTMLCanvasElement) {
     const startTime = new Date().getTime()
     if (this.input) {
       this.input.dispose()
@@ -59,6 +59,9 @@ export class YOLO {
       this.inputImage = null
     }
     this.inputImage = tf.browser.fromPixels(imageEl)
+    imageCanvas.height = this.inputImage.shape[0]
+    imageCanvas.width = this.inputImage.shape[1]
+    tf.browser.toPixels(this.inputImage, imageCanvas)
 
     this.input =
       tf.tidy(() => {
