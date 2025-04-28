@@ -63,7 +63,7 @@ func main() {
 			continue
 		}
 
-		_, err := saveImage(p.Image, *outputDir, fmt.Sprintf("%d_data", counter))
+		_, err := saveImage(p.Image, *outputDir, fmt.Sprintf("%d_image", counter))
 		if err != nil {
 			log.Printf("error while writing file %d", counter)
 			log.Print(err)
