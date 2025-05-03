@@ -44,6 +44,10 @@ export class DistanceProviderDepth implements DistanceProvider {
 }
 
 export class DistanceProviderStatic implements DistanceProvider {
+  _distance: number
+  constructor(distance: number = 1.5) {
+    this._distance = distance
+  }
 
   async distance(image: HTMLImageElement | HTMLVideoElement, debugCanvas: HTMLCanvasElement) {
     const imageName = image.src
@@ -59,7 +63,7 @@ export class DistanceProviderStatic implements DistanceProvider {
     if (imageName.includes("Twentyone")) {
       return 1.64
     }
-    return 1.5
+    return this._distance
   }
 }
 

@@ -1,10 +1,10 @@
 import './style.css'
-import { DistanceProviderInput } from './distance-provider.ts'
+import { DistanceProviderInput, DistanceProviderStatic } from './distance-provider.ts'
 import { initPWA } from './pwa.ts'
 import { YOLO } from './yolotfjs.ts'
 import './utils.ts'
-import { AngleProvider } from './angle-provider.ts'
-import { testAll } from './testing.ts'
+import { AngleProviderStatic, AngleProviderSensor } from './angle-provider.ts'
+import { testAll, testSingle } from './testing.ts'
 import { predictWeight } from './weight-prediction.ts'
 import { bodyMeasurement, convertToCm } from './utils.ts'
 
@@ -53,7 +53,7 @@ app.innerHTML = `
 `
 
 const appContainer = document.querySelector<HTMLDivElement>("div#app-container")!
-const imageButton = document.querySelector<HTMLButtonElement>('#imageBtn')!
+const testButton = document.querySelector<HTMLButtonElement>('#imageBtn')!
 const mainButton = document.querySelector<HTMLButtonElement>("button#mainButton")!
 const video = document.querySelector<HTMLVideoElement>('video#video')!
 const testContainer = document.querySelector<HTMLElement>("#test")!
@@ -106,7 +106,7 @@ directionButton.addEventListener("click", () => {
 let yolo = new YOLO()
 const yoloProm = yolo.loadModel()
 const distanceProvider = new DistanceProviderInput()
-const angleProvider = new AngleProvider()
+const angleProvider = new AngleProviderSensor()
 
 setInterval(async () => {
   const angle = await angleProvider.angle()
@@ -152,9 +152,9 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
         const weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
         valueContainer.innerHTML =
           `
-          <div class="container">Body length: ${bodyLength.toFixed(2)}</div>
-          <div class="container">Shoulder height: ${shoulderHeight.toFixed(2)}</div>
-          <div class="container">rump height: ${rumpHeight.toFixed(2)}</div>
+          <div class="container">Body length: ${realBodyLength.toFixed(2)}</div>
+          <div class="container">Shoulder height: ${realShoulderHeight.toFixed(2)}</div>
+          <div class="container">rump height: ${realRumpHeight.toFixed(2)}</div>
           <div class="container">weight: ${weight.toFixed(2)}</div>
           <div class="container">distance: ${distance.toFixed(2)}</div>
           <div class="container">angle: ${angle.toFixed(2)}</div>
@@ -164,9 +164,9 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
 
         valueContainer.querySelector("button")?.addEventListener("click", () => {
           sendData({
-            bodyLength: bodyLength,
-            rumpHeight: rumpHeight,
-            shoulderHeight: shoulderHeight,
+            bodyLength: realBodyLength,
+            rumpHeight: realRumpHeight,
+            shoulderHeight: realShoulderHeight,
             weight: weight,
             distance: distance,
             angle: angle,
@@ -183,9 +183,10 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
 })
 
 
-imageButton.addEventListener('click', async () => {
+testButton.addEventListener('click', async () => {
   await yoloProm
-  testAll(testContainer, yolo, angleProvider, distanceProvider)
+  testSingle(testContainer, yolo, new AngleProviderStatic(21.6), new DistanceProviderStatic(1.354))
+  // testAll(testContainer, yolo, new AngleProviderStatic(1.5), new DistanceProviderStatic(1.5))
 })
 
 function showResultOverlay() {

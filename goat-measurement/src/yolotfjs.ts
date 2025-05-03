@@ -37,6 +37,14 @@ export class YOLO {
     console.log(tf.getBackend())
   }
 
+  /**
+   * Runs a goat detection model to detect a goat in imageEl. Outputs images to imageCanvas and canvas
+   *
+   * @param imageEl The source where an image is captured from
+   * @param imageCanvas will draw the source image to this canvas
+   * @param canvas will draw the result of the detection to this canvas
+   * @returns a binary mask as a tf.Tensor2D or null if no detection was made
+  */
   async predict(imageEl: HTMLImageElement | HTMLVideoElement, imageCanvas: HTMLCanvasElement, canvas: HTMLCanvasElement | null = null) {
     const startTime = new Date().getTime()
     this.preprocess(imageEl, imageCanvas)
@@ -47,6 +55,13 @@ export class YOLO {
     return this.mask
   }
 
+  /**
+   * Preprocess to get the source image from imageEl and draw it to imageCanvas
+   * This will set multiple class fields like inputImage and input
+   *
+   * @param imageEl source of the image to detect goats
+   * @param imageCanvas destination for the source image to draw to
+  */
   preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement, imageCanvas: HTMLCanvasElement) {
     const startTime = new Date().getTime()
     if (this.input) {
@@ -99,6 +114,9 @@ export class YOLO {
     console.log("preprocess time: ", new Date().getTime() - startTime)
   }
 
+  /**
+   * Runs the model on this.input and writes to this.output
+  */
   runInference() {
     const startTime = new Date().getTime()
     if (this.output) {
@@ -110,6 +128,11 @@ export class YOLO {
     console.log("inference time: ", new Date().getTime() - startTime)
   }
 
+  /**
+   * Processes the output of the model and creates the binary mask
+   *
+   * @returns a binary tf.Tensor2D or null if no detection of quality was made
+  */
   postprocess() {
     const startTime = new Date().getTime()
     const [detectionTensor, segmentationTensor] = this.output!
@@ -175,6 +198,11 @@ export class YOLO {
   }
 
 
+  /**
+   * Draws the result of a inference on the canvas element
+   *
+   * @param canvas target for drawing the result of the inference
+  */
   async draw(canvas: HTMLCanvasElement | null) {
     if (this.mask == null || this.box == null || this.inputHeight == null || this.inputWidth == null || this.originalHeight == null || this.originalWidth == null || this.scaledOriginalHeight == null || this.scaledOriginalWidth == null || this.inputImage == null)
       return
@@ -188,8 +216,10 @@ export class YOLO {
     })
 
     console.log("scaled", this.scaledOriginalWidth, this.scaledOriginalHeight)
+    console.log(canvas)
 
     if (canvas) {
+      console.log("drawing")
       let arr = await tf.browser.toPixels(newOverlay)
       newOverlay.dispose()
       let tempCanvas = document.createElement("canvas")
@@ -213,12 +243,18 @@ export class YOLO {
 
 }
 
+/**
+ * Bounding Box representation of xywh where xy is the center point of the bounding box
+  */
 class Box {
   x: number
   y: number
   w: number
   h: number
 
+  /**
+   * @param arr array with xywh format where xy is the center point of the bounding box
+  */
   constructor(arr: Float32Array<ArrayBufferLike>) {
     this.x = arr[0]
     this.y = arr[1]

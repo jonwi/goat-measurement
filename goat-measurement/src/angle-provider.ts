@@ -1,4 +1,9 @@
-export class AngleProvider {
+
+export interface AngleProvider {
+  angle(): Promise<number>
+}
+
+export class AngleProviderSensor implements AngleProvider {
   lastAngle: number | null = null
 
   constructor() {
@@ -16,3 +21,15 @@ export class AngleProvider {
     return 20
   }
 }
+
+export class AngleProviderStatic implements AngleProvider {
+  _angle: number
+  constructor(angle: number) {
+    this._angle = angle
+  }
+
+  async angle() {
+    return this._angle
+  }
+}
+
