@@ -47,7 +47,7 @@ export class YOLO {
   */
   async predict(imageEl: HTMLImageElement | HTMLVideoElement, imageCanvas: HTMLCanvasElement, canvas: HTMLCanvasElement | null = null) {
     const startTime = new Date().getTime()
-    this.preprocess(imageEl, imageCanvas)
+    this.preprocess(imageEl, imageCanvas, canvas)
     this.runInference()
     this.postprocess()
     await this.draw(canvas)
@@ -56,13 +56,14 @@ export class YOLO {
   }
 
   /**
-   * Preprocess to get the source image from imageEl and draw it to imageCanvas
+   * Preprocess to get the source image from imageEl and draw it to imageCanvas and canvas
    * This will set multiple class fields like inputImage and input
    *
    * @param imageEl source of the image to detect goats
    * @param imageCanvas destination for the source image to draw to
+   * @param canvas result canvas
   */
-  preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement, imageCanvas: HTMLCanvasElement) {
+  preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement, imageCanvas: HTMLCanvasElement, canvas: HTMLCanvasElement) {
     const startTime = new Date().getTime()
     if (this.input) {
       this.input.dispose()
@@ -77,6 +78,9 @@ export class YOLO {
     imageCanvas.height = this.inputImage.shape[0]
     imageCanvas.width = this.inputImage.shape[1]
     tf.browser.toPixels(this.inputImage, imageCanvas)
+    canvas.height = this.inputImage.shape[0]
+    canvas.width = this.inputImage.shape[1]
+    tf.browser.toPixels(this.inputImage, canvas)
 
     this.input =
       tf.tidy(() => {

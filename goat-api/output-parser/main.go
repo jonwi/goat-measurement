@@ -38,9 +38,21 @@ type P struct {
 func main() {
 	infileName := flag.String("infile", "output.json", "path to file with json data")
 	outputDir := flag.String("outdir", "out/", "output directory where the images are created")
+	help := flag.Bool("help", false, "get help")
 	flag.Parse()
 
-	file, err := os.Open(*infileName)
+	if *help {
+		fmt.Println(
+			`This Programm parses the output of the goat-api and writes the data to a directory.
+			Simple Usage: go run main.go --infile output.json --outdir images/`)
+	} else {
+		parseData(*infileName, *outputDir)
+	}
+}
+
+func parseData(infileName string, outputDir string) {
+
+	file, err := os.Open(infileName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,7 +62,7 @@ func main() {
 	buf := make([]byte, 1024*1024)
 	scanner.Buffer(buf, 2048*2048)
 	counter := 0
-	log.Printf("reading %s, writing to %s\n", *infileName, *outputDir)
+	log.Printf("reading %s, writing to %s\n", infileName, outputDir)
 
 	for scanner.Scan() {
 		log.Printf("parsing row number %d", counter)
@@ -63,14 +75,14 @@ func main() {
 			continue
 		}
 
-		_, err := saveImage(p.Image, *outputDir, fmt.Sprintf("%d_image", counter))
+		_, err := saveImage(p.Image, outputDir, fmt.Sprintf("%d_image", counter))
 		if err != nil {
 			log.Printf("error while writing file %d", counter)
 			log.Print(err)
 			continue
 		}
 
-		err = saveData(p, *outputDir, fmt.Sprintf("%d_data", counter))
+		err = saveData(p, outputDir, fmt.Sprintf("%d_data", counter))
 		if err != nil {
 			log.Printf("error while writing file %d", counter)
 			log.Print(err)
@@ -82,7 +94,6 @@ func main() {
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
-
 }
 
 func saveData(data Payload, outpath string, fileNameBase string) error {

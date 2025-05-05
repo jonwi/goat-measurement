@@ -138,20 +138,25 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
 
       let [mask, distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
 
+      let [realBodyLength, realShoulderHeight, realRumpHeight, weight] = [0, 0, 0, 0]
       if (mask != null) {
         if (state.direction == "right") {
           mask = mask.reverse(1)
         }
         let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, resultCanvas)
-        const [realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(
-          bodyLength,
-          shoulderHeight,
-          rumpHeight,
-          { distance: distance, angle: angle, calibration: state.calibration }
-        )
-        const weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
-        valueContainer.innerHTML =
-          `
+
+          ;[realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(
+            bodyLength,
+            shoulderHeight,
+            rumpHeight,
+            { distance: distance, angle: angle, calibration: state.calibration }
+          );
+        weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
+      } else {
+        toast("<span>Keine Ziege erkannt</span>")
+      }
+      valueContainer.innerHTML =
+        `
           <div class="container">Body length: ${realBodyLength.toFixed(2)}</div>
           <div class="container">Shoulder height: ${realShoulderHeight.toFixed(2)}</div>
           <div class="container">rump height: ${realRumpHeight.toFixed(2)}</div>
@@ -160,22 +165,19 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
           <div class="container">angle: ${angle.toFixed(2)}</div>
           <button>Send Data</button>
           `
-        showResultOverlay()
+      showResultOverlay()
 
-        valueContainer.querySelector("button")?.addEventListener("click", () => {
-          sendData({
-            bodyLength: realBodyLength,
-            rumpHeight: realRumpHeight,
-            shoulderHeight: realShoulderHeight,
-            weight: weight,
-            distance: distance,
-            angle: angle,
-            image: imageCanvas.toDataURL()
-          })
+      valueContainer.querySelector("button")?.addEventListener("click", () => {
+        sendData({
+          bodyLength: realBodyLength,
+          rumpHeight: realRumpHeight,
+          shoulderHeight: realShoulderHeight,
+          weight: weight,
+          distance: distance,
+          angle: angle,
+          image: imageCanvas.toDataURL()
         })
-      } else {
-        toast("<span>Keine Ziege erkannt</span>")
-      }
+      })
     })
   } else {
     toast("camera permission denied")
