@@ -68,11 +68,11 @@ const directionButton = document.querySelector<HTMLButtonElement>("#toggleDirect
 const calibrationInput = document.querySelector<HTMLInputElement>("#calibrationValue")!
 const angleContainer = document.querySelector<HTMLDivElement>("#angle")!
 
-const state: AppState = { direction: "left", calibration: 149.85 }
+const state: AppState = { direction: "left", calibration: 3.375 }
 calibrationInput.addEventListener("change", () => {
   state.calibration = parseFloat(calibrationInput.value)
 })
-calibrationInput.value = "149.85"
+calibrationInput.value = state.calibration.toString()
 
 appContainer.style.width = `${window.innerWidth - 10}px`
 appContainer.style.height = `${window.innerHeight - 10}px`

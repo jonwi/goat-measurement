@@ -57,7 +57,7 @@ export async function bodyMeasurement(mask: tf.Tensor2D, canvas: HTMLCanvasEleme
   draw(canvas, middle, middle_start, middle, middle_end, "orange")
 
 
-  let center = Math.floor((middle_end - middle_start) * 0.60 + middle_start)
+  let center = Math.floor((middle_end - middle_start) * 0.50 + middle_start)
   let [center_start, center_end, body_length] = await binaryRle(mask.gather(center).squeeze())
   draw(canvas, center_start, center, center_end, center, "yellow")
 
@@ -130,9 +130,9 @@ type Options = {
 
 const DefaultConvertOptions: Options = {
   distance: 1.5,
-  calibration: 149.85,
-  calibration_distance: 20,
-  orig_shape: [4032, 3024],
-  mask_shape: [640, 480],
+  calibration: 3.375,
+  calibration_distance: 200,
+  orig_shape: [640, 640],
+  mask_shape: [640, 640],
   angle: 20,
 }

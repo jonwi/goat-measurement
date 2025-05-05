@@ -1,4 +1,5 @@
 
 export function predictWeight(bodyLength: number, shoulderHeight: number, rumpHeight: number, heartGirth: number) {
-  return bodyLength * 0.45287999 + shoulderHeight * 1.30813392 + rumpHeight * 0.55532975 - 111.45145379928671
+  console.log("bodyLength", bodyLength, "shoulderHeight", shoulderHeight, "rumpHeight", rumpHeight)
+  return bodyLength * 0.45287999 + rumpHeight * 1.30813392 + shoulderHeight * 0.55532975 - 111.45145379928671
 }

@@ -5,7 +5,7 @@ import { predictWeight } from "./weight-prediction"
 import { YOLO } from "./yolotfjs"
 
 export async function testSingle(container: HTMLElement, yolo: YOLO, angleProvider: AngleProvider, distanceProvider: DistanceProvider) {
-  container.innerHTML = `<div>${createResultContainer("test/24_image.png")}</div>`
+  container.innerHTML = `<div>${createResultContainer("test/27_image.png")}</div>`
 
   let rContainers = container.querySelectorAll(".result-container")
   for (let rContainer of rContainers) {
@@ -94,7 +94,7 @@ async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: 
       bodyLength,
       shoulderHeight,
       rumpHeight,
-      { distance: distance, angle: angle, calibration: 200 }
+      { distance: distance, angle: angle }
     )
     const weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
     testOutput(container, realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle)
