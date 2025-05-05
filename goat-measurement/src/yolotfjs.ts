@@ -63,7 +63,7 @@ export class YOLO {
    * @param imageCanvas destination for the source image to draw to
    * @param canvas result canvas
   */
-  preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement, imageCanvas: HTMLCanvasElement, canvas: HTMLCanvasElement) {
+  preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement, imageCanvas: HTMLCanvasElement, canvas: HTMLCanvasElement | null) {
     const startTime = new Date().getTime()
     if (this.input) {
       this.input.dispose()
@@ -78,9 +78,11 @@ export class YOLO {
     imageCanvas.height = this.inputImage.shape[0]
     imageCanvas.width = this.inputImage.shape[1]
     tf.browser.toPixels(this.inputImage, imageCanvas)
-    canvas.height = this.inputImage.shape[0]
-    canvas.width = this.inputImage.shape[1]
-    tf.browser.toPixels(this.inputImage, canvas)
+    if (canvas) {
+      canvas.height = this.inputImage.shape[0]
+      canvas.width = this.inputImage.shape[1]
+      tf.browser.toPixels(this.inputImage, canvas)
+    }
 
     this.input =
       tf.tidy(() => {
@@ -161,13 +163,13 @@ export class YOLO {
     console.log("maxConfidence", maxConfidence)
 
     this.mask = tf.tidy(() => {
-      const maskCoeffs = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze()
+      const maskCoeffs: tf.Tensor2D = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze()
       this.box = new Box(detections.slice([0, maxIndex], [this.xyxy!, 1]).dataSync<any>())
       const mx = Math.max(this.scaledOriginalHeight!, this.scaledOriginalWidth!)
       const heightStart = this.scaledOriginalHeight == mx ? 0 : ((mx - this.scaledOriginalHeight!) / 2)
       const widthStart = this.scaledOriginalWidth == mx ? 0 : ((mx - this.scaledOriginalWidth!) / 2)
 
-      // Reconstruct mask
+      // @ts-ignore
       let mask: tf.Tensor2D =
         segmentationMap
           .matMul(maskCoeffs.expandDims(1))  // Shape [160, 160, 1]

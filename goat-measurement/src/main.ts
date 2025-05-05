@@ -113,6 +113,7 @@ setInterval(async () => {
   angleContainer.innerText = `${angle.toFixed(2)}`
 }, 100)
 
+// @ts-ignore this is not supported in all browsers
 navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   if (perm.state != 'denied') {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 640 } } })!

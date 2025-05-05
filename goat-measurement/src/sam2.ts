@@ -19,6 +19,7 @@ export async function createMask(image: HTMLImageElement, debugCavnas: HTMLCanva
   const outputs = await model(inputs)
 
   // Post-process masks
+  // @ts-ignore
   const masks = await processor.post_process_masks(outputs.pred_masks, inputs.original_sizes, inputs.reshaped_input_sizes)
   console.log("sam2", masks)
 }

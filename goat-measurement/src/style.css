@@ -1,3 +1,49 @@
+/* Reset default margin and padding */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Set viewport constraints */
+@viewport {
+  width: device-width;
+  zoom: 1.0;
+  min-zoom: 1.0;
+  max-zoom: 1.0;
+  user-zoom: fixed;
+}
+
+/* Main container styling */
+.container {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+     -moz-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+          text-size-adjust: 100%;
+}
+
+/* Disable pinch-to-zoom on mobile */
+html {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Prevent text scaling */
+body {
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
 .container {
   color: white;
   background-color: #242424;

@@ -27,6 +27,7 @@ export class DistanceProviderDepth implements DistanceProvider {
     const imageData = RawImage.fromCanvas(tempCanvas)
     console.log("imageData", imageData)
     const pipe = await this.pipe
+    // @ts-ignore 
     const result: DepthEstimationPipelineOutput = await pipe(imageData)
     console.log(result)
     const index = height * width / 2 + width / 2

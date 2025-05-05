@@ -23,6 +23,7 @@ export default defineConfig({
       globPatterns: ['**/*.{js,css,html,svg,png,ico,json,bin,yaml}'],
       cleanupOutdatedCaches: true,
       clientsClaim: true,
+      maximumFileSizeToCacheInBytes: 6000000
     },
 
     devOptions: {
@@ -36,4 +37,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["onnxruntime-web"],
   },
+  base: "jonwie.github.io/goat-measurement"
 })
