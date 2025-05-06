@@ -33,9 +33,9 @@ export default defineConfig({
       type: 'module',
     },
   })],
-  assetsInclude: ["**/*.onnx"],
+  assetsInclude: ["**/*.{json,bin,png}"],
   optimizeDeps: {
     exclude: ["onnxruntime-web"],
   },
-  base: "jonwie.github.io/goat-measurement"
+  base: "/goat-measurement/"
 })

@@ -29,7 +29,7 @@ app.innerHTML = `
       <div id="toast-container"></div>
       <video id="video"></video>
       <div id="overlay-container">
-        <img id="overlay" src="/overlay2.png"/>
+        <img id="overlay" src="${import.meta.env.BASE_URL}overlay2.png"/>
       </div>
       <div id="result-overlay" class="hidden">
         <canvas id="result-canvas"></canvas>
