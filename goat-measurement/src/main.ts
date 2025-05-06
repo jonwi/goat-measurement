@@ -29,7 +29,9 @@ app.innerHTML = `
       <div id="toast-container"></div>
       <video id="video"></video>
       <div id="overlay-container">
+        <div class="overlay-background"></div>
         <img id="overlay" src="${import.meta.env.BASE_URL}overlay2.png"/>
+        <div class="overlay-background"></div>
       </div>
       <div id="result-overlay" class="hidden">
         <canvas id="result-canvas"></canvas>
@@ -74,11 +76,11 @@ calibrationInput.addEventListener("change", () => {
 })
 calibrationInput.value = state.calibration.toString()
 
-appContainer.style.width = `${window.innerWidth - 10}px`
-appContainer.style.height = `${window.innerHeight - 10}px`
+appContainer.style.width = `${window.innerWidth}px`
+appContainer.style.height = `${window.innerHeight}px`
 window.addEventListener("resize", () => {
-  appContainer.style.width = `${window.innerWidth - 10}px`
-  appContainer.style.height = `${window.innerHeight - 10}px`
+  appContainer.style.width = `${window.innerWidth}px`
+  appContainer.style.height = `${window.innerHeight}px`
 })
 
 resultClose.addEventListener("click", () => {
@@ -202,14 +204,9 @@ function hideResultOverlay() {
 
 function resizeOverlayImage(videoWidth: number, videoHeight: number, streamWidth: number, streamHeight: number, aspectRatio: number) {
   const minSize = Math.min(videoWidth, videoHeight)
-  if (minSize < streamWidth || minSize < streamHeight) {
-    // TODO: check if height or width restricted. almost always it will be height because of screen.
-    overlayImage.style.width = `${minSize / aspectRatio}px`
-    overlayImage.style.height = `${minSize}px`
-  } else {
-    overlayImage.style.width = `${streamWidth}px`
-    overlayImage.style.height = `${streamHeight}px`
-  }
+  console.log("overlay resize", videoWidth, videoHeight, streamWidth, streamHeight)
+  overlayImage.style.width = `${minSize / aspectRatio}px`
+  overlayImage.style.height = `${minSize}px`
 }
 
 function toast(html: string) {
