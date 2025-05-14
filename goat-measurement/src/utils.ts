@@ -1,4 +1,3 @@
-import { BoundingBox } from '@huggingface/transformers'
 import * as tf from '@tensorflow/tfjs'
 import { Box } from './yolotfjs'
 
@@ -30,58 +29,70 @@ async function binaryRle(t: tf.Tensor1D) {
 
 export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLCanvasElement | null = null) {
   // mask is hxw 640x640
-  const detection = mask.slice([box.topY(), box.topX()], [box.height(), box.width()])
+  let detection = mask.slice([box.topY(), box.topX()], [box.height(), box.width()])
   let height = detection.shape[0]
+  const sm = detection.sum(0).greater(tf.scalar(0, "int32"))
+  const xStart = sm.argMax()
+  const xEnd = tf.scalar(detection.shape[1] - 1, "int32").sub(sm.reverse().argMax())
+  console.log("xStart xEnd", xStart.dataSync(), xEnd.dataSync())
+  detection = detection.slice([0, xStart.dataSync()[0]], [height, xEnd.sub(xStart).dataSync()[0]])
+  console.log("detection shape", detection.shape)
   let width = detection.shape[1]
-  let horizontalCumsum = detection.cumsum(1)
-  let verticalCumsum = detection.cumsum(0)
+  const x = xStart.dataSync()[0] + box.topX()
 
-  let lastLine = horizontalCumsum.slice([0, width - 2], [-1, 1])
-  let longestLine = lastLine.squeeze().argMax().add(tf.scalar(20, 'int32'))
-  let [start, end, length] = await binaryRle(detection.gather(longestLine).squeeze())
-  draw(canvas, start, longestLine.dataSync()[0], end, longestLine.dataSync()[0], "red", box.topX(), box.topY())
-
-  let rump = Math.floor(length * 0.75 + start)
-  let sacLine = verticalCumsum.slice([0, rump], [-1, 1]).squeeze()
-  let rump_start = sacLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax()
-  let rump_end = sacLine.argMax()
-  // draw(canvas, rump, rump_start.dataSync()[0], rump, rump_end.dataSync()[0], "green", box.topX(), box.topY())
-
-  let shoulder = Math.floor(length * 0.25) + start
-  let shoulderLine = verticalCumsum.slice([0, shoulder], [-1, 1]).squeeze()
-  let shoulder_start = shoulderLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax()
-  let shoulder_end = shoulderLine.argMax()
-  // draw(canvas, shoulder, shoulder_start.dataSync()[0], shoulder, shoulder_end.dataSync()[0], "blue", box.topX(), box.topY())
-
-  let lastIndices = tf.fill([mask.shape[1]], mask.shape[1]).sub(mask.reverse(1).argMax(1))
-  // ignore lines where mask.shape[1] because there are not supposed to be any fully filled lines and therefore they are empty
-  lastIndices = lastIndices.where(lastIndices.notEqual(tf.scalar(mask.shape[1])), tf.scalar(0))
+  let lastIndices = tf.fill([width], height).sub(detection.reverse(0).argMax(0))
+  console.log("lastIndices", await lastIndices.data())
+  const middleSplit = Math.ceil(width * 0.6)
+  const headWidth = width * 0.2 // this might need more finetuning
+  const leftWidth = width * 0.4
+  const rightWidth = width * 0.4
+  drawRect(canvas, x, box.topY(), headWidth, box.height(), "#3022dd24")
+  drawRect(canvas, x + headWidth, box.topY(), leftWidth, box.height(), "#d52a3d24")
+  drawRect(canvas, x + headWidth + leftWidth, box.topY(), rightWidth, box.height(), "#55d32c24")
+  const lowestLeft = lastIndices.slice(headWidth, middleSplit).argMax()
+  console.log("left", await lowestLeft.data())
+  drawVerticalLine(canvas, (await lowestLeft.data())[0] + x + headWidth, "green")
+  const lowestRight = lastIndices.slice(middleSplit, width - middleSplit).argMax()
+  drawVerticalLine(canvas, (await lowestRight.data())[0] + x + middleSplit, "red")
   console.log(await lastIndices.data())
-  let middle = Math.floor(length * 0.5) + start
-  let middleLine = verticalCumsum.slice([0, middle], [-1, 1]).squeeze()
-  let middle_start = middleLine.equal(tf.tensor1d([1], 'int32')).toInt().argMax().dataSync()[0]
-  let middle_end = middleLine.argMax().dataSync()[0]
-  draw(canvas, middle, middle_start, middle, middle_end, "orange", box.topX(), box.topY())
+  const newMiddle = lowestLeft
+    .add(tf.scalar(headWidth, "int32"))
+    .add(lowestRight.add(tf.scalar(middleSplit, 'int32')))
+    .div(tf.scalar(2, 'int32'))
+  drawVerticalLine(canvas, newMiddle.dataSync()[0] + x, "purple")
 
+  const middleStart = detection.argMax(0).gather(newMiddle)
+  const middleEnd = lastIndices.gather(newMiddle)
+  draw(canvas, newMiddle.dataSync()[0], middleStart.dataSync()[0], newMiddle.dataSync()[0], middleEnd.dataSync()[0], "yellow", x, box.topY())
 
-  let center = Math.floor((middle_end - middle_start) * 0.50 + middle_start)
-  let [center_start, center_end, body_length] = await binaryRle(detection.gather(center).squeeze())
-  draw(canvas, center_start, center, center_end, center, "yellow", box.topX(), box.topY())
+  const leftIndex = lowestLeft.add(tf.scalar(headWidth, 'int32')).add(tf.scalar(1, 'int32'))
+  const shoulderStart = detection.argMax(0).gather(leftIndex)
+  const shoulderEnd = lastIndices.gather(leftIndex)
+  console.log("shoulderEnd", shoulderEnd.dataSync())
+  draw(canvas, leftIndex.dataSync()[0], shoulderStart.dataSync()[0], leftIndex.dataSync()[0], shoulderEnd.dataSync()[0], "orange", x, box.topY())
+  const shoulder_height = shoulderEnd.sub(shoulderStart)
 
-  let left_section = detection.slice([0, 0], [-1, middle])
-  let z = left_section.mul(tf.range(0, height, 1, 'int32').expandDims(-1))
-  let front_feed_end = z.max().max()
-  let shoulder_height = front_feed_end.sub(shoulder_start)
-  draw(canvas, shoulder + 10, shoulder_start.dataSync()[0], shoulder + 10, front_feed_end.dataSync()[0], "darkblue", box.topX(), box.topY())
+  const rightIndex = lowestRight.add(tf.scalar(headWidth, 'int32')).add(tf.scalar(leftWidth, 'int32')).add(tf.scalar(2, 'int32'))
+  const rumpStart = detection.argMax(0).gather(rightIndex)
+  const rumpEnd = lastIndices.gather(rightIndex)
+  draw(canvas, rightIndex.dataSync()[0], rumpStart.dataSync()[0], rightIndex.dataSync()[0], rumpEnd.dataSync()[0], "orange", x, box.topY())
+  const rump_height = rumpEnd.sub(rumpStart)
 
-
-  let right_section = detection.slice([0, middle], [-1, -1])
-  let y = right_section.mul(tf.range(0, height, 1, 'int32').expandDims(-1))
-  let back_feed_end = y.max().max()
-  let rump_height = back_feed_end.sub(rump_start)
-  draw(canvas, rump + 20, rump_start.dataSync()[0], rump + 20, back_feed_end.dataSync()[0], "darkgreen", box.topX(), box.topY())
+  const body_length = 0
 
   return [body_length, shoulder_height.dataSync()[0], rump_height.dataSync()[0]]
+}
+
+function drawRect(canvas: HTMLCanvasElement | null, x: number, y: number, width: number, height: number, style: string) {
+  if (canvas == null) return
+  let ctx = canvas.getContext("2d")!
+  ctx.fillStyle = style
+  ctx.fillRect(x, y, width, height)
+}
+
+function drawVerticalLine(canvas: HTMLCanvasElement | null, x: number, style: string) {
+  if (canvas == null) return
+  draw(canvas, x, 0, x, canvas.height, style, 0, 0)
 }
 
 function draw(canvas: HTMLCanvasElement | null, x1: number, y1: number, x2: number, y2: number, style: string, xOffset: number, yOffset: number) {
