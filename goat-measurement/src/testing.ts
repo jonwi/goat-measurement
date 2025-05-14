@@ -41,6 +41,25 @@ export async function testAll(container: HTMLElement, yolo: YOLO, angleProvider:
   ]
   */
   const images = [
+    "test/4_image.png",
+    "test/5_image.png",
+    "test/6_image.png",
+    "test/7_image.png",
+    "test/8_image.png",
+    "test/9_image.png",
+    "test/10_image.png",
+    "test/11_image.png",
+    "test/12_image.png",
+    "test/13_image.png",
+    "test/14_image.png",
+    "test/15_image.png",
+    "test/16_image.png",
+    "test/17_image.png",
+    "test/18_image.png",
+    "test/19_image.png",
+    "test/20_image.png",
+    "test/21_image.png",
+    "test/22_image.png",
     "test/23_image.png",
     "test/24_image.png",
     "test/25_image.png",
@@ -52,7 +71,7 @@ export async function testAll(container: HTMLElement, yolo: YOLO, angleProvider:
   container.innerHTML =
     `
     <div>
-      ${images.map((i) => { createResultContainer(i) })}
+      ${images.map((img, i) => { return createResultContainer(img) }).join("")}
     </div>
     `
   let rContainers = container.querySelectorAll(".result-container")
@@ -84,12 +103,12 @@ async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: 
   const maskProm = yolo.predict(imageEl, debugCanvas, debugCanvas)
   // const sam2mask = await createMask(imageEl, debugCanvas)
   const distanceProm = distanceProvider.distance(imageEl, depthCanvas)
-  const angleProm = angleProvider.angle()
+  const angleProm = angleProvider.angle(imageEl)
 
-  const [mask, distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
+  const [[mask, box], distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
 
-  if (mask != null) {
-    let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, debugCanvas)
+  if (mask != null && box != null) {
+    let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, box, debugCanvas)
     const [realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(
       bodyLength,
       shoulderHeight,

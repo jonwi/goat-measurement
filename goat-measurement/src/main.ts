@@ -1,5 +1,5 @@
 import './style.css'
-import { DistanceProviderInput, DistanceProviderStatic } from './distance-provider.ts'
+import { DistanceProviderInput, DistanceProviderSecond, DistanceProviderStatic } from './distance-provider.ts'
 import { initPWA } from './pwa.ts'
 import { YOLO } from './yolotfjs.ts'
 import './utils.ts'
@@ -111,7 +111,7 @@ const distanceProvider = new DistanceProviderInput()
 const angleProvider = new AngleProviderSensor()
 
 setInterval(async () => {
-  const angle = await angleProvider.angle()
+  const angle = await angleProvider.angle(video)
   angleContainer.innerText = `${angle.toFixed(2)}`
 }, 100)
 
@@ -137,16 +137,16 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
       await yoloProm
       const maskProm = yolo.predict(video, imageCanvas, resultCanvas)
       const distanceProm = distanceProvider.distance(video, depthCanvas)
-      const angleProm = angleProvider.angle()
+      const angleProm = angleProvider.angle(video)
 
-      let [mask, distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
+      let [[mask, box], distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
 
       let [realBodyLength, realShoulderHeight, realRumpHeight, weight] = [0, 0, 0, 0]
-      if (mask != null) {
+      if (mask != null && box != null) {
         if (state.direction == "right") {
           mask = mask.reverse(1)
         }
-        let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, resultCanvas)
+        let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, box, resultCanvas)
 
           ;[realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(
             bodyLength,
@@ -190,8 +190,8 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
 
 testButton.addEventListener('click', async () => {
   await yoloProm
-  testSingle(testContainer, yolo, new AngleProviderStatic(21.6), new DistanceProviderStatic(1.354))
-  // testAll(testContainer, yolo, new AngleProviderStatic(1.5), new DistanceProviderStatic(1.5))
+  //testSingle(testContainer, yolo, new AngleProviderStatic(21.6), new DistanceProviderStatic(1.354))
+  testAll(testContainer, yolo, new AngleProviderStatic(1.5), new DistanceProviderSecond(1.5))
 })
 
 function showResultOverlay() {

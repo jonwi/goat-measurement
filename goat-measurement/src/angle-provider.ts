@@ -1,6 +1,6 @@
 
 export interface AngleProvider {
-  angle(): Promise<number>
+  angle(image: HTMLImageElement | HTMLVideoElement): Promise<number>
 }
 
 export class AngleProviderSensor implements AngleProvider {
@@ -15,7 +15,7 @@ export class AngleProviderSensor implements AngleProvider {
     })
   }
 
-  async angle() {
+  async angle(image: HTMLImageElement | HTMLVideoElement) {
     if (this.lastAngle)
       return this.lastAngle
     return 20
@@ -28,8 +28,17 @@ export class AngleProviderStatic implements AngleProvider {
     this._angle = angle
   }
 
-  async angle() {
-    return this._angle
+  async angle(image: HTMLImageElement | HTMLVideoElement) {
+    const imageName = image.src
+    const number = imageName.split("_")[0]
+    try {
+      const req = await fetch(`${number}_data.json`)
+      const data = await req.json()
+      console.log(data)
+      return data["Angle"]
+    } catch {
+      return this.angle
+    }
   }
 }
 

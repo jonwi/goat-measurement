@@ -8,5 +8,5 @@ export default defineConfig({
         preset: '2023',
     },
     preset,
-    images: ['public/example.jpg'],
+    images: ['public/overlay2.png'],
 })

@@ -43,16 +43,16 @@ export class YOLO {
    * @param imageEl The source where an image is captured from
    * @param imageCanvas will draw the source image to this canvas
    * @param canvas will draw the result of the detection to this canvas
-   * @returns a binary mask as a tf.Tensor2D or null if no detection was made
+   * @returns a binary mask as a tf.Tensor2D or null if no detection was made, and a bounding box of the detection
   */
-  async predict(imageEl: HTMLImageElement | HTMLVideoElement, imageCanvas: HTMLCanvasElement, canvas: HTMLCanvasElement | null = null) {
+  async predict(imageEl: HTMLImageElement | HTMLVideoElement, imageCanvas: HTMLCanvasElement, canvas: HTMLCanvasElement | null = null): Promise<[tf.Tensor2D | null, Box | null]> {
     const startTime = new Date().getTime()
     this.preprocess(imageEl, imageCanvas, canvas)
     this.runInference()
     this.postprocess()
     await this.draw(canvas)
     console.log("predict time: ", new Date().getTime() - startTime)
-    return this.mask
+    return [this.mask, this.box]
   }
 
   /**
@@ -252,7 +252,7 @@ export class YOLO {
 /**
  * Bounding Box representation of xywh where xy is the center point of the bounding box
   */
-class Box {
+export class Box {
   x: number
   y: number
   w: number

@@ -68,6 +68,25 @@ export class DistanceProviderStatic implements DistanceProvider {
   }
 }
 
+export class DistanceProviderSecond implements DistanceProvider {
+  _distance: number
+  constructor(distance: number = 1.2) {
+    this._distance = distance
+  }
+  async distance(image: HTMLImageElement | HTMLVideoElement, debugCanvas: HTMLCanvasElement) {
+    const imageName = image.src
+    const number = imageName.split("_")[0]
+    try {
+      const req = await fetch(`${number}_data.json`)
+      const data = await req.json()
+      console.log(data)
+      return data["Distance"]
+    } catch {
+      return this._distance
+    }
+  }
+}
+
 export class DistanceProviderInput implements DistanceProvider {
   async distance(image: HTMLImageElement | HTMLVideoElement, debugCanvas: HTMLCanvasElement) {
     const inputContainer = document.createElement("div")
