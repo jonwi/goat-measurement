@@ -118,3 +118,4 @@ runs/
 
 __pycache__/
 *.Identifier
+*.tar
