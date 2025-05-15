@@ -34,7 +34,6 @@ export class AngleProviderStatic implements AngleProvider {
     try {
       const req = await fetch(`${number}_data.json`)
       const data = await req.json()
-      console.log(data)
       return data["Angle"]
     } catch {
       return this.angle

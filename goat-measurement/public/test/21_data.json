@@ -1,9 +1,9 @@
 {
     "Angle": 15,
     "Distance": 2.849,
-    "BodyLength": 167,
-    "ShoulderHeight": 136,
-    "RumpHeight": 144,
-    "Weight": 93.72875,
+    "Weight": 60.0,
+    "BodyLength": 85,
+    "ShoulderHeight": 72,
+    "RumpHeight": 72,
     "Direction": "right"
 }

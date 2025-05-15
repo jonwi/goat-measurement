@@ -79,7 +79,6 @@ export class DistanceProviderSecond implements DistanceProvider {
     try {
       const req = await fetch(`${number}_data.json`)
       const data = await req.json()
-      console.log(data)
       return data["Distance"]
     } catch {
       return this._distance
