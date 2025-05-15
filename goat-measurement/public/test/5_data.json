@@ -1,1 +1,9 @@
-{"Angle":14.4,"Distance":4.099,"BodyLength":91,"ShoulderHeight":36,"RumpHeight":65,"Weight":-1.9358305}
+{
+    "Angle": 14.4,
+    "Distance": 4.099,
+    "BodyLength": 91,
+    "ShoulderHeight": 36,
+    "RumpHeight": 65,
+    "Weight": -1.9358305,
+    "Direction": "left"
+}
