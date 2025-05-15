@@ -1,7 +1,7 @@
-import { AngleProvider } from "./angle-provider"
-import { DistanceProvider } from "./distance-provider"
+import { AngleProvider, AngleProviderStatic } from "./angle-provider"
+import { DistanceProvider, DistanceProviderSecond } from "./distance-provider"
 import { bodyMeasurement, convertToCm } from "./utils"
-import { predictWeight } from "./weight-prediction"
+import { predictWeight, WeightPredictor } from "./weight-prediction"
 import { YOLO } from "./yolotfjs"
 
 export async function testSingle(container: HTMLElement, yolo: YOLO, angleProvider: AngleProvider, distanceProvider: DistanceProvider) {
@@ -19,7 +19,7 @@ export async function testSingle(container: HTMLElement, yolo: YOLO, angleProvid
   console.log("finished all tests")
 }
 
-export async function testAll(container: HTMLElement, yolo: YOLO, angleProvider: AngleProvider, distanceProvider: DistanceProvider) {
+export async function testAll(container: HTMLElement) {
   /*
   const images = [
     "test/IMG_1600_Twentyone.JPG",
@@ -75,12 +75,18 @@ export async function testAll(container: HTMLElement, yolo: YOLO, angleProvider:
     </div>
     `
   let rContainers = container.querySelectorAll(".result-container")
+
+  const weightPredictor = new WeightPredictor(
+    new YOLO(),
+    new AngleProviderStatic(10),
+    new DistanceProviderSecond(),
+  )
   for (let rContainer of rContainers) {
     const imageEl = rContainer.querySelector("img")!
     const debugCanvas = rContainer.querySelector<HTMLCanvasElement>(".debug-canvas")!
     const depthCanvas = rContainer.querySelector<HTMLCanvasElement>(".depth-canvas")!
     await imageEl.decode()
-    await test(rContainer, imageEl, debugCanvas, depthCanvas, yolo, distanceProvider, angleProvider)
+    await test(rContainer, imageEl, debugCanvas, depthCanvas, weightPredictor)
   }
 
   console.log("finished all tests")
@@ -98,26 +104,38 @@ function createResultContainer(imgSrc: string) {
 `
 }
 
-async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: HTMLCanvasElement, depthCanvas: HTMLCanvasElement, yolo: YOLO, distanceProvider: DistanceProvider, angleProvider: AngleProvider) {
+async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: HTMLCanvasElement, depthCanvas: HTMLCanvasElement, weightPredictor: WeightPredictor) {
   console.log("canvas", debugCanvas)
-  const maskProm = yolo.predict(imageEl, debugCanvas, debugCanvas)
-  // const sam2mask = await createMask(imageEl, debugCanvas)
-  const distanceProm = distanceProvider.distance(imageEl, depthCanvas)
-  const angleProm = angleProvider.angle(imageEl)
+  const imagePrefix = imageEl.src.split("_")[0]
+  console.log("num", imagePrefix)
 
-  const [[mask, box], distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
-
-  if (mask != null && box != null) {
-    let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, box, debugCanvas)
-    const [realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(
-      bodyLength,
-      shoulderHeight,
-      rumpHeight,
-      { distance: distance, angle: angle }
-    )
-    const weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
+  const res = await weightPredictor.predictWeight(
+    imageEl,
+    debugCanvas,
+    debugCanvas,
+    depthCanvas,
+    (await getData(imagePrefix))["Direction"],
+    3.375
+  )
+  if (res != null) {
+    const [realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle] = res
     testOutput(container, realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle)
   }
+}
+
+type ImageData = {
+  Direction: "left" | "right",
+  Angle: number,
+  Distance: number,
+  BodyLength: number,
+  ShoulderHeight: number,
+  RumpHeight: number,
+  Weight: number,
+}
+
+async function getData(imagePrefix: string): Promise<ImageData> {
+  const res = await fetch(`${imagePrefix}_data.json`)
+  return await res.json()
 }
 
 async function testOutput(container: Element, bodyLength: number, shoudlerHeight: number, rumpHeight: number, weight: number, distance: number, angle: number) {

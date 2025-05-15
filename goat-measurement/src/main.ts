@@ -5,8 +5,7 @@ import { YOLO } from './yolotfjs.ts'
 import './utils.ts'
 import { AngleProviderStatic, AngleProviderSensor } from './angle-provider.ts'
 import { testAll, testSingle } from './testing.ts'
-import { predictWeight } from './weight-prediction.ts'
-import { bodyMeasurement, convertToCm } from './utils.ts'
+import { WeightPredictor } from './weight-prediction.ts'
 
 type Direction = "left" | "right"
 type AppState = {
@@ -105,10 +104,13 @@ directionButton.addEventListener("click", () => {
   }
 })
 
-let yolo = new YOLO()
-const yoloProm = yolo.loadModel()
-const distanceProvider = new DistanceProviderInput()
 const angleProvider = new AngleProviderSensor()
+const weightPredictor = new WeightPredictor(
+  new YOLO(),
+  angleProvider,
+  new DistanceProviderInput()
+)
+
 
 setInterval(async () => {
   const angle = await angleProvider.angle(video)
@@ -134,29 +136,20 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
       const depthCanvas = document.createElement("canvas")
       const imageCanvas = document.createElement("canvas")
 
-      await yoloProm
-      const maskProm = yolo.predict(video, imageCanvas, resultCanvas)
-      const distanceProm = distanceProvider.distance(video, depthCanvas)
-      const angleProm = angleProvider.angle(video)
+      const res = await weightPredictor.predictWeight(
+        video,
+        imageCanvas,
+        resultCanvas,
+        depthCanvas,
+        state.direction,
+        state.calibration,
+      )
 
-      let [[mask, box], distance, angle] = await Promise.all([maskProm, distanceProm, angleProm])
-
-      let [realBodyLength, realShoulderHeight, realRumpHeight, weight] = [0, 0, 0, 0]
-      if (mask != null && box != null) {
-        if (state.direction == "right") {
-          mask = mask.reverse(1)
-        }
-        let [bodyLength, shoulderHeight, rumpHeight] = await bodyMeasurement(mask, box, resultCanvas)
-
-          ;[realBodyLength, realShoulderHeight, realRumpHeight] = convertToCm(
-            bodyLength,
-            shoulderHeight,
-            rumpHeight,
-            { distance: distance, angle: angle, calibration: state.calibration }
-          );
-        weight = predictWeight(realBodyLength, realShoulderHeight, realRumpHeight, 0)
-      } else {
+      let [realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle] = [0, 0, 0, 0, 0, 0]
+      if (res == null) {
         toast("<span>Keine Ziege erkannt</span>")
+      } else {
+        ;[realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle] = res
       }
       valueContainer.innerHTML =
         `
@@ -189,9 +182,8 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
 
 
 testButton.addEventListener('click', async () => {
-  await yoloProm
   //testSingle(testContainer, yolo, new AngleProviderStatic(21.6), new DistanceProviderStatic(1.354))
-  testAll(testContainer, yolo, new AngleProviderStatic(1.5), new DistanceProviderSecond(1.5))
+  testAll(testContainer)
 })
 
 function showResultOverlay() {

@@ -3,7 +3,7 @@ import { Box } from './yolotfjs'
 
 async function binaryRle(t: tf.Tensor1D) {
   let l = t.shape[0]
-  let indices = tf.range(0, t.shape[0], 1, 'int32')
+  let indices = tf.range(0, t.shape[0], 1, "int32")
 
   let unequal = t.slice(1, l - 1).notEqual(t.slice(0, l - 1))
     .concat(tf.tensor1d([true]))
@@ -17,7 +17,7 @@ async function binaryRle(t: tf.Tensor1D) {
     let length = possible.max().data()
     let end = nonzero.gather(maxLengthIndex).data()
     // underflow possible
-    let begin = nonzero.gather(maxLengthIndex.sub(tf.tensor1d([1], 'int32'))).data()
+    let begin = nonzero.gather(maxLengthIndex.sub(tf.tensor1d([1], "int32"))).data()
 
     let res = await Promise.all([begin, end, length])
     let unwrap = res.map(r => r[0])
@@ -27,7 +27,16 @@ async function binaryRle(t: tf.Tensor1D) {
   return [-1, -1, -1]
 }
 
-export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLCanvasElement | null = null) {
+/**
+ * Extracts measurements in pixels from the mask
+ *
+ * @param mask a masked image of the goat
+ * @param box a bounding box that is the bounding of the detection
+ * @param canvas optional canvas where findings are drawn
+ * @param direction the direction the goat is facing
+ * @returns bodyLength, shoulderHeight, rumpHeight in pixels
+ */
+export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLCanvasElement | null = null, direction: "left" | "right") {
   // mask is hxw 640x640
   let detection = mask.slice([box.topY(), box.topX()], [box.height(), box.width()])
   let height = detection.shape[0]
@@ -42,37 +51,52 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
 
   let lastIndices = tf.fill([width], height).sub(detection.reverse(0).argMax(0))
   console.log("lastIndices", await lastIndices.data())
-  const middleSplit = Math.ceil(width * 0.6)
-  const headWidth = width * 0.2 // this might need more finetuning
-  const leftWidth = width * 0.4
-  const rightWidth = width * 0.4
-  drawRect(canvas, x, box.topY(), headWidth, box.height(), "#3022dd24")
-  drawRect(canvas, x + headWidth, box.topY(), leftWidth, box.height(), "#d52a3d24")
-  drawRect(canvas, x + headWidth + leftWidth, box.topY(), rightWidth, box.height(), "#55d32c24")
-  const lowestLeft = lastIndices.slice(headWidth, middleSplit).argMax()
-  console.log("left", await lowestLeft.data())
-  drawVerticalLine(canvas, (await lowestLeft.data())[0] + x + headWidth, "green")
-  const lowestRight = lastIndices.slice(middleSplit, width - middleSplit).argMax()
-  drawVerticalLine(canvas, (await lowestRight.data())[0] + x + middleSplit, "red")
+  const middleSplit = Math.floor(width * 0.6)
+  const headWidth = Math.floor(width * 0.2) // this might need more finetuning
+  const shoulderWidth = Math.floor(width * 0.4)
+  const rumpWidth = Math.floor(width * 0.4)
+  let [headStart, shoulderSideStart, rumpSideStart] = [0, 0, 0]
+  if (direction == "left") {
+    shoulderSideStart = headWidth
+    rumpSideStart = headWidth + shoulderWidth
+    headStart = 0
+  } else {
+    shoulderSideStart = rumpWidth
+    rumpSideStart = 0
+    headStart = rumpWidth + shoulderWidth
+  }
+  console.log("shoulderSideStart", shoulderSideStart, "rumpSideStart", rumpSideStart, "headStart", headStart)
+  drawRect(canvas, x + headStart, box.topY(), headWidth, box.height(), "#3022dd24")
+  drawRect(canvas, x + shoulderSideStart, box.topY(), shoulderWidth, box.height(), "#d52a3d24")
+  drawRect(canvas, x + rumpSideStart, box.topY(), rumpWidth, box.height(), "#55d32c24")
+  const shoulderSide = lastIndices.slice(shoulderSideStart, shoulderWidth)
+  const lowestShoulderIndex = shoulderSide.argMax()
+  console.log("left", await lowestShoulderIndex.data())
+  drawVerticalLine(canvas, (await lowestShoulderIndex.data())[0] + x + shoulderSideStart, "green")
+  const rumpSide = lastIndices.slice(rumpSideStart, rumpWidth)
+  const { values, indices } = tf.topk(rumpSide, 10, true)
+  const lowestRumpIndex = indices.mean().cast("int32")
+  console.log(lowestRumpIndex)
+  drawVerticalLine(canvas, (await lowestRumpIndex.data())[0] + x + rumpSideStart, "red")
   console.log(await lastIndices.data())
-  const newMiddle = lowestLeft
-    .add(tf.scalar(headWidth, "int32"))
-    .add(lowestRight.add(tf.scalar(middleSplit, 'int32')))
-    .div(tf.scalar(2, 'int32'))
+  const newMiddle = lowestShoulderIndex
+    .add(tf.scalar(shoulderSideStart, "int32"))
+    .add(lowestRumpIndex.add(tf.scalar(rumpSideStart, "int32")))
+    .div(tf.scalar(2, "int32"))
   drawVerticalLine(canvas, newMiddle.dataSync()[0] + x, "purple")
 
   const middleStart = detection.argMax(0).gather(newMiddle)
   const middleEnd = lastIndices.gather(newMiddle)
   draw(canvas, newMiddle.dataSync()[0], middleStart.dataSync()[0], newMiddle.dataSync()[0], middleEnd.dataSync()[0], "yellow", x, box.topY())
 
-  const leftIndex = lowestLeft.add(tf.scalar(headWidth, 'int32')).add(tf.scalar(1, 'int32'))
+  const leftIndex = lowestShoulderIndex.add(tf.scalar(shoulderSideStart, "int32"))
   const shoulderStart = detection.argMax(0).gather(leftIndex)
   const shoulderEnd = lastIndices.gather(leftIndex)
   console.log("shoulderEnd", shoulderEnd.dataSync())
-  draw(canvas, leftIndex.dataSync()[0], shoulderStart.dataSync()[0], leftIndex.dataSync()[0], shoulderEnd.dataSync()[0], "orange", x, box.topY())
+  draw(canvas, leftIndex.dataSync()[0], shoulderStart.dataSync()[0], leftIndex.dataSync()[0], shoulderEnd.dataSync()[0], "blue", x, box.topY())
   const shoulder_height = shoulderEnd.sub(shoulderStart)
 
-  const rightIndex = lowestRight.add(tf.scalar(headWidth, 'int32')).add(tf.scalar(leftWidth, 'int32')).add(tf.scalar(2, 'int32'))
+  const rightIndex = lowestRumpIndex.add(tf.scalar(rumpSideStart, "int32"))
   const rumpStart = detection.argMax(0).gather(rightIndex)
   const rumpEnd = lastIndices.gather(rightIndex)
   draw(canvas, rightIndex.dataSync()[0], rumpStart.dataSync()[0], rightIndex.dataSync()[0], rumpEnd.dataSync()[0], "orange", x, box.topY())
