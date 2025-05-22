@@ -69,7 +69,6 @@ const SECOND_REFERENZ_NO_DIEGO = [
   "test/26_image.png",
   "test/27_image.png",
   "test/28_image.png",
-  "test/29_image.png",
 ]
 
 const SECOND_CLEAN = [
@@ -103,7 +102,6 @@ const SECOND_DETECTED = [
   "test/7_image.png",
   "test/8_image.png",
   "test/9_image.png",
-  "test/10_image.png",
   "test/14_image.png",
   "test/15_image.png",
   "test/16_image.png",
@@ -119,8 +117,22 @@ const SECOND_DETECTED = [
   "test/29_image.png",
 ]
 
+const SECOND_OUTSIDE = [
+  "test/4_image.png",
+  "test/5_image.png",
+  "test/7_image.png",
+  "test/8_image.png",
+  "test/9_image.png",
+  "test/14_image.png",
+  "test/15_image.png",
+  "test/16_image.png",
+  "test/17_image.png",
+  "test/21_image.png",
+  "test/22_image.png",
+]
+
 export async function testAll(container: HTMLElement) {
-  const images = SECOND_DETECTED
+  const images = SECOND_REFERENZ_NO_DIEGO
 
   container.innerHTML =
     `
@@ -155,14 +167,22 @@ export async function testAll(container: HTMLElement) {
     }
   }
   console.log("finished all tests")
-  console.log("BodyLength accuracy:", avg(bodyPcts))
-  console.log("ShoulderHeight accuracy:", avg(shoulderPcts))
-  console.log("RumpHeight accuracy:", avg(rumpPcts))
-  console.log("Weight accuracy:", avg(weightPcts))
+  console.log("BodyLength accuracy:", mean(bodyPcts))
+  console.log("ShoulderHeight accuracy:", mean(shoulderPcts))
+  console.log("RumpHeight accuracy:", mean(rumpPcts))
+  console.log("Weight accuracy:", mean(weightPcts))
 }
 
-function avg(arr: number[]) {
+function meanAbsolutePercentageError(arr: number[]) {
+  return arr.map((c) => Math.abs(c - 1)).reduce((p, c) => p + c, 0) / arr.length
+}
+
+function mean(arr: number[]) {
   return arr.reduce((p, c) => p + c, 0) / arr.length
+}
+
+function absolutePercentageError(pred: number, truth: number) {
+  return Math.abs(pred - truth) / truth
 }
 
 function createResultContainer(imgSrc: string) {
@@ -189,11 +209,11 @@ async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: 
     debugCanvas,
     depthCanvas,
     groundTruth["Direction"],
-    3.375
+    3.575
   )
   if (res != null) {
-    const [realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle] = res
-    const percentages = testOutput(container, realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle, groundTruth)
+    const [realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = res
+    const percentages = testOutput(container, realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle, groundTruth)
     return percentages
   }
   return null
@@ -214,20 +234,21 @@ async function getData(imagePrefix: string): Promise<ImageData> {
   return await res.json()
 }
 
-async function testOutput(container: Element, bodyLength: number, shoulderHeight: number, rumpHeight: number, weight: number, distance: number, angle: number, groundTruth: ImageData) {
+async function testOutput(container: Element, bodyLength: number, shoulderHeight: number, rumpHeight: number, bodyHeight: number, weight: number, distance: number, angle: number, groundTruth: ImageData) {
   const outputContainer = document.createElement("div")
-  const bodyPercentage = bodyLength / groundTruth.BodyLength
-  const shoulderPercentage = shoulderHeight / groundTruth.ShoulderHeight
-  const rumpPercentage = rumpHeight / groundTruth.RumpHeight
-  const weightPercentage = weight / groundTruth.Weight
-  const anglePercentage = angle / groundTruth.Angle
-  const distancePercentage = distance / groundTruth.Distance
+  const bodyPercentage = absolutePercentageError(bodyLength, groundTruth.BodyLength)
+  const shoulderPercentage = absolutePercentageError(shoulderHeight, groundTruth.ShoulderHeight)
+  const rumpPercentage = absolutePercentageError(rumpHeight, groundTruth.RumpHeight)
+  const weightPercentage = absolutePercentageError(weight, groundTruth.Weight)
+  const anglePercentage = absolutePercentageError(angle, groundTruth.Angle)
+  const distancePercentage = absolutePercentageError(distance, groundTruth.Distance)
 
   outputContainer.innerHTML =
     `
     <div> Body length: ${bodyLength.toFixed(2)} ${groundTruth.BodyLength} <span>%: ${bodyPercentage.toFixed(2)}</span></div>
     <div> Shoulder height: ${shoulderHeight.toFixed(2)} ${groundTruth.ShoulderHeight} <span>%: ${shoulderPercentage.toFixed(2)}</span></div>
     <div> rump height: ${rumpHeight.toFixed(2)} ${groundTruth.RumpHeight} <span>%: ${rumpPercentage.toFixed(2)}</span></div>
+    <div> body height: ${bodyHeight.toFixed(2)}  </div>
     <div> weight: ${weight.toFixed(2)} ${groundTruth.Weight} <span>%: ${weightPercentage.toFixed(2)}</span></div>
     <div> distance: ${distance.toFixed(2)} ${groundTruth.Distance} <span>%: ${distancePercentage.toFixed(2)}</span></div>
     <div> angle: ${angle.toFixed(2)} ${groundTruth.Angle} <span>%: ${anglePercentage.toFixed(2)}</span></div>

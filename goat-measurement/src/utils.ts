@@ -40,7 +40,7 @@ async function binaryRle(t: tf.Tensor1D) {
  * @param box a bounding box that is the bounding of the detection
  * @param canvas optional canvas where findings are drawn
  * @param direction the direction the goat is facing
- * @returns bodyLength, shoulderHeight, rumpHeight in pixels
+ * @returns bodyLength, shoulderHeight, rumpHeight, bodyHeight in pixels
  */
 export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLCanvasElement | null = null, direction: "left" | "right") {
   // mask is hxw 640x640
@@ -100,6 +100,7 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
   const middleEnd = lastIndices.gather(newMiddle)
   const middleLength = middleEnd.sub(middleStart)
   draw(canvas, newMiddle.dataSync()[0], middleStart.dataSync()[0], newMiddle.dataSync()[0], middleEnd.dataSync()[0], "yellow", x, box.topY())
+  const bodyHeight = middleEnd.sub(middleStart)
 
   const bodyLengthIndex = middleLength.mul(tf.scalar(0.5)).add(middleStart).cast("int32")
   const bodyLengthLine = detection.gather(bodyLengthIndex, 0)
@@ -122,7 +123,7 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
   draw(canvas, rumpIndex.dataSync()[0], rumpTop.dataSync()[0], rumpIndex.dataSync()[0], rumpBottom.dataSync()[0], "orange", x, box.topY())
   const rumpHeight = rumpBottom.sub(rumpTop)
 
-  return [bodyLength, shoulderHeight.dataSync()[0], rumpHeight.dataSync()[0]]
+  return [bodyLength, shoulderHeight.dataSync()[0], rumpHeight.dataSync()[0], bodyHeight.dataSync()[0]]
 }
 
 /**
@@ -227,16 +228,18 @@ function pixelsToCm(pixels: number, convertOptions: Options) {
  * @param body_length length of the body in pixels
  * @param shoulder_height height of shoulder in pixels
  * @param rump_height height of rump in pixels
+ * @param bodyHeight height of body in the middle
  * @param convertOptions constants for conversion
- * @returns bodyLength, shoulderHeight, rumpHeight in centimeters
+ * @returns bodyLength, shoulderHeight, rumpHeight, bodyHeight in centimeters
  */
-export function convertToCm(body_length: number, shoulder_height: number, rump_height: number, convertOptions: ConvertOptions) {
+export function convertToCm(body_length: number, shoulder_height: number, rump_height: number, bodyHeight: number, convertOptions: ConvertOptions) {
   const options = { ...DefaultConvertOptions, ...convertOptions }
   console.log("convert options: ", options)
   return [
     pixelsToCm(scaleToWidth(body_length, options), options),
     pixelsToCm(scaleToHeight(shoulder_height, options), options),
-    pixelsToCm(scaleToHeight(rump_height, options), options)
+    pixelsToCm(scaleToHeight(rump_height, options), options),
+    pixelsToCm(scaleToHeight(bodyHeight, options), options),
   ]
 }
 
