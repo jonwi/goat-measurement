@@ -132,7 +132,7 @@ const SECOND_OUTSIDE = [
 ]
 
 export async function testAll(container: HTMLElement) {
-  const images = SECOND_REFERENZ_NO_DIEGO
+  const images = SECOND_DETECTED
 
   container.innerHTML =
     `
@@ -147,30 +147,33 @@ export async function testAll(container: HTMLElement) {
     new AngleProviderStatic(10),
     new DistanceProviderSecond(),
   )
-  const bodyPcts = []
-  const shoulderPcts = []
-  const rumpPcts = []
-  const weightPcts = []
 
-  for (let rContainer of rContainers) {
-    const imageEl = rContainer.querySelector("img")!
-    const debugCanvas = rContainer.querySelector<HTMLCanvasElement>(".debug-canvas")!
-    const depthCanvas = rContainer.querySelector<HTMLCanvasElement>(".depth-canvas")!
-    await imageEl.decode()
-    const percentages = await test(rContainer, imageEl, debugCanvas, depthCanvas, weightPredictor)
-    if (percentages != null) {
-      const [bodyPercentage, shoulderPercentage, rumpPercentage, weightPercentage, anglePercentage, distancePercentage] = percentages
-      bodyPcts.push(bodyPercentage)
-      shoulderPcts.push(shoulderPercentage)
-      rumpPcts.push(rumpPercentage)
-      weightPcts.push(weightPercentage)
+  for (let calibration of Array.from(Array(1).keys()).map((i) => 3.6856 + i / 10000)) {
+    console.log("using calibration:", calibration)
+    const bodyPcts = []
+    const shoulderPcts = []
+    const rumpPcts = []
+    const weightPcts = []
+    for (let rContainer of rContainers) {
+      const imageEl = rContainer.querySelector("img")!
+      const debugCanvas = rContainer.querySelector<HTMLCanvasElement>(".debug-canvas")!
+      const depthCanvas = rContainer.querySelector<HTMLCanvasElement>(".depth-canvas")!
+      await imageEl.decode()
+
+      const testResult = await test(rContainer, imageEl, debugCanvas, depthCanvas, weightPredictor, calibration)
+      if (testResult != null) {
+        bodyPcts.push(testResult.bodyPercentage)
+        shoulderPcts.push(testResult.shoulderPercentage)
+        rumpPcts.push(testResult.rumpPercentage)
+        weightPcts.push(testResult.weightPercentage)
+      }
     }
+    console.log("finished all tests")
+    console.log("BodyLength mape:", mean(bodyPcts))
+    console.log("ShoulderHeight mape:", mean(shoulderPcts))
+    console.log("RumpHeight mape:", mean(rumpPcts))
+    console.log("Weight mape:", mean(weightPcts))
   }
-  console.log("finished all tests")
-  console.log("BodyLength accuracy:", mean(bodyPcts))
-  console.log("ShoulderHeight accuracy:", mean(shoulderPcts))
-  console.log("RumpHeight accuracy:", mean(rumpPcts))
-  console.log("Weight accuracy:", mean(weightPcts))
 }
 
 function meanAbsolutePercentageError(arr: number[]) {
@@ -196,10 +199,8 @@ function createResultContainer(imgSrc: string) {
 `
 }
 
-async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: HTMLCanvasElement, depthCanvas: HTMLCanvasElement, weightPredictor: WeightPredictor) {
-  console.log("canvas", debugCanvas)
+async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: HTMLCanvasElement, depthCanvas: HTMLCanvasElement, weightPredictor: WeightPredictor, calibration: number) {
   const imagePrefix = imageEl.src.split("_")[0]
-  console.log("num", imagePrefix)
 
   const groundTruth = await getData(imagePrefix)
 
@@ -209,14 +210,28 @@ async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: 
     debugCanvas,
     depthCanvas,
     groundTruth["Direction"],
-    3.575
+    calibration
   )
   if (res != null) {
     const [realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = res
-    const percentages = testOutput(container, realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle, groundTruth)
-    return percentages
+    const result = await testOutput(container, realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle, groundTruth)
+    return result
   }
   return null
+}
+
+type TestResult = {
+  bodyPercentage: number
+  shoulderPercentage: number
+  rumpPercentage: number
+  weightPercentage: number
+  bodyLength: number
+  shoulderHeight: number
+  rumpHeight: number
+  bodyHeight: number
+  weight: number
+  angle: number
+  distance: number
 }
 
 type ImageData = {
@@ -254,5 +269,19 @@ async function testOutput(container: Element, bodyLength: number, shoulderHeight
     <div> angle: ${angle.toFixed(2)} ${groundTruth.Angle} <span>%: ${anglePercentage.toFixed(2)}</span></div>
     `
   container.appendChild(outputContainer)
-  return [bodyPercentage, shoulderPercentage, rumpPercentage, weightPercentage, anglePercentage, distancePercentage]
+
+  const result: TestResult = {
+    bodyPercentage: bodyPercentage,
+    shoulderPercentage: shoulderPercentage,
+    rumpPercentage: rumpPercentage,
+    weightPercentage: weightPercentage,
+    bodyLength: bodyLength,
+    shoulderHeight: shoulderHeight,
+    rumpHeight: rumpHeight,
+    bodyHeight: bodyHeight,
+    weight: weight,
+    angle: angle,
+    distance: distance,
+  }
+  return result
 }

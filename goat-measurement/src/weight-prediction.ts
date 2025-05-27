@@ -59,7 +59,6 @@ export class WeightPredictor {
       weight = this.linearRegression(realBodyLength, realShoulderHeight, realRumpHeight, 0, bodyHeight)
 
       data.push([realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle])
-      console.log(data)
       return [realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle]
     }
     return null

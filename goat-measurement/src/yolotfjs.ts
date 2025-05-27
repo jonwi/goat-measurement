@@ -1,7 +1,7 @@
 import * as tf from '@tensorflow/tfjs'
 
 export class YOLO {
-
+  debug = false
   originalWidth: number | null = null
   originalHeight: number | null = null
   scaledOriginalWidth: number | null = null
@@ -33,8 +33,10 @@ export class YOLO {
 
     // cold start to compile the whole network may take a second
     this.model.execute(tf.zeros([1, this.inputHeight, this.inputWidth, 3]))
-    console.log("model loaded in: ", new Date().getTime() - startTime)
-    console.log(tf.getBackend())
+    if (this.debug) {
+      console.log("model loaded in: ", new Date().getTime() - startTime)
+      console.log(tf.getBackend())
+    }
   }
 
   /**
@@ -51,7 +53,7 @@ export class YOLO {
     this.runInference()
     this.postprocess()
     await this.draw(canvas)
-    console.log("predict time: ", new Date().getTime() - startTime)
+    if (this.debug) console.log("predict time: ", new Date().getTime() - startTime)
     return [this.mask, this.box]
   }
 
@@ -99,7 +101,7 @@ export class YOLO {
         this.scaledOriginalWidth = this.originalWidth * scalingFactor
         const mx = Math.max(this.scaledOriginalWidth, this.scaledOriginalHeight)
 
-        console.log("image sizes:", this.originalHeight, this.originalWidth, this.scaledOriginalHeight, this.scaledOriginalWidth, scalingFactor)
+        if (this.debug) console.log("image sizes:", this.originalHeight, this.originalWidth, this.scaledOriginalHeight, this.scaledOriginalWidth, scalingFactor)
         return image
           .resizeBilinear([this.scaledOriginalHeight, this.scaledOriginalWidth])
           .pad([
@@ -117,7 +119,7 @@ export class YOLO {
           .expandDims(0)
           .toFloat().div(tf.scalar(255))
       })
-    console.log("preprocess time: ", new Date().getTime() - startTime)
+    if (this.debug) console.log("preprocess time: ", new Date().getTime() - startTime)
   }
 
   /**
@@ -131,7 +133,7 @@ export class YOLO {
       this.output = null
     }
     this.output = this.model.execute(this.input!)
-    console.log("inference time: ", new Date().getTime() - startTime)
+    if (this.debug) console.log("inference time: ", new Date().getTime() - startTime)
   }
 
   /**
@@ -157,10 +159,10 @@ export class YOLO {
     const maxConfidence = confidences.gather(maxIndex, 1).dataSync()[0]
 
     if (maxConfidence < 0.85) {
-      console.log(`max confidence is only ${maxConfidence}, therefore the will be no detection.`)
+      if (this.debug) console.log(`max confidence is only ${maxConfidence}, therefore the will be no detection.`)
       return
     }
-    console.log("maxConfidence", maxConfidence)
+    if (this.debug) console.log("maxConfidence", maxConfidence)
 
     this.mask = tf.tidy(() => {
       const maskCoeffs: tf.Tensor2D = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze()
@@ -199,7 +201,7 @@ export class YOLO {
       return binary
     })
 
-    console.log("postprocess time: ", new Date().getTime() - startTime)
+    if (this.debug) console.log("postprocess time: ", new Date().getTime() - startTime)
     return this.mask
   }
 
@@ -221,11 +223,9 @@ export class YOLO {
       return overlay.where<tf.Tensor3D>(expandedMask.less(1), tf.tensor1d([128, 0, 0, 150], 'int32'))
     })
 
-    console.log("scaled", this.scaledOriginalWidth, this.scaledOriginalHeight)
-    console.log(canvas)
+    if (this.debug) console.log("scaled", this.scaledOriginalWidth, this.scaledOriginalHeight)
 
     if (canvas) {
-      console.log("drawing")
       let arr = await tf.browser.toPixels(newOverlay)
       newOverlay.dispose()
       let tempCanvas = document.createElement("canvas")
@@ -244,7 +244,7 @@ export class YOLO {
       ctx.rect(this.box.topX(), this.box.topY(), this.box.w, this.box.h)
       ctx.stroke()
     }
-    console.log("draw time: ", new Date().getTime() - startTime)
+    if (this.debug) console.log("draw time: ", new Date().getTime() - startTime)
   }
 
 }
