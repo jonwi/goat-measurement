@@ -1,7 +1,7 @@
 import { AngleProvider } from "./angle-provider"
 import { DistanceProvider } from "./distance-provider"
+import { GoatPredictor } from "./goat-predictor"
 import { bodyMeasurement, convertToCm } from "./utils"
-import { YOLO } from "./yolotfjs"
 
 
 
@@ -10,10 +10,10 @@ const data: number[][] = []
 export class WeightPredictor {
   angleProvider: AngleProvider
   distanceProvider: DistanceProvider
-  yolo: YOLO
+  yolo: GoatPredictor
   yoloProm: Promise<void>
 
-  constructor(yolo: YOLO, angleProvider: AngleProvider, distanceProvider: DistanceProvider) {
+  constructor(yolo: GoatPredictor, angleProvider: AngleProvider, distanceProvider: DistanceProvider) {
     this.angleProvider = angleProvider
     this.distanceProvider = distanceProvider
     this.yolo = yolo

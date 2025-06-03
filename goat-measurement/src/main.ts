@@ -4,14 +4,8 @@ import { initPWA } from './pwa.ts'
 import { YOLO } from './yolotfjs.ts'
 import './utils.ts'
 import { AngleProviderStatic, AngleProviderSensor } from './angle-provider.ts'
-import { testAll, testSingle } from './testing.ts'
+import { testAll } from './testing.ts'
 import { WeightPredictor } from './weight-prediction.ts'
-
-type Direction = "left" | "right"
-type AppState = {
-  direction: Direction
-  calibration: number
-}
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
@@ -45,6 +39,7 @@ app.innerHTML = `
       <button id="imageBtn">Test</button>
       <button id="clearTest">Clear Test</button>
       <input id="calibrationValue" />
+      <input id="apiPath" />
       <div id="angle"></div>
     </div>
   </div>
@@ -68,12 +63,31 @@ const toastContainer = document.querySelector<HTMLDivElement>("#toast-container"
 const directionButton = document.querySelector<HTMLButtonElement>("#toggleDirection")!
 const calibrationInput = document.querySelector<HTMLInputElement>("#calibrationValue")!
 const angleContainer = document.querySelector<HTMLDivElement>("#angle")!
+const apiPathInput = document.querySelector<HTMLInputElement>("#apiPath")!
 
-const state: AppState = { direction: "left", calibration: 3.375 }
+type Direction = "left" | "right"
+type AppState = {
+  direction: Direction
+  calibration: number
+  apiPath: string
+  tag: string
+}
+
+const state: AppState = {
+  direction: "left",
+  calibration: 3.375,
+  apiPath: "http://localhost:8080",
+  tag: "3605"
+}
+
 calibrationInput.addEventListener("change", () => {
   state.calibration = parseFloat(calibrationInput.value)
 })
 calibrationInput.value = state.calibration.toString()
+apiPathInput.addEventListener("change", () => {
+  state.apiPath = apiPathInput.value
+})
+apiPathInput.value = state.apiPath
 
 appContainer.style.width = `${window.innerWidth}px`
 appContainer.style.height = `${window.innerHeight}px`
@@ -121,7 +135,11 @@ setInterval(async () => {
 navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   if (perm.state != 'denied') {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 640 } } })!
+    //const streamHighRes = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } })!
+    //console.log(streamHighRes.getVideoTracks())
     const streamSettings = stream.getVideoTracks()[0].getSettings()
+    const capture = new ImageCapture(stream.getVideoTracks()[0])
+    const originalImage = await takePhoto(capture)
     resizeOverlayImage(video.offsetWidth, video.offsetHeight, streamSettings.width ?? Number.MAX_VALUE, streamSettings.height ?? Number.MAX_VALUE, streamSettings.aspectRatio ?? 1)
     window.addEventListener("resize", () => {
       resizeOverlayImage(video.offsetWidth, video.offsetHeight, streamSettings.width ?? Number.MAX_VALUE, streamSettings.height ?? Number.MAX_VALUE, streamSettings.aspectRatio ?? 1)
@@ -145,11 +163,11 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
         state.calibration,
       )
 
-      let [realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle] = [0, 0, 0, 0, 0, 0]
+      let [realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = [0, 0, 0, 0, 0, 0, 0]
       if (res == null) {
         toast("<span>Keine Ziege erkannt</span>")
       } else {
-        ;[realBodyLength, realShoulderHeight, realRumpHeight, weight, distance, angle] = res
+        ;[realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = res
       }
       valueContainer.innerHTML =
         `
@@ -159,19 +177,36 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
           <div class="container">weight: ${weight.toFixed(2)}</div>
           <div class="container">distance: ${distance.toFixed(2)}</div>
           <div class="container">angle: ${angle.toFixed(2)}</div>
-          <button>Send Data</button>
+          <input id="tagInput" value="${state.tag}"/>
+          <button id="btnSendData">Send Data<span id="spinner" class="hidden">Spinner</span></button>
           `
       showResultOverlay()
 
-      valueContainer.querySelector("button")?.addEventListener("click", () => {
-        sendData({
-          bodyLength: realBodyLength,
-          rumpHeight: realRumpHeight,
-          shoulderHeight: realShoulderHeight,
-          weight: weight,
-          distance: distance,
-          angle: angle,
-          image: imageCanvas.toDataURL()
+      valueContainer.querySelector<HTMLInputElement>("#tagInput")?.addEventListener("change", (ev) => {
+        state.tag = (ev.currentTarget as HTMLInputElement).value
+      })
+
+      valueContainer.querySelector("button")?.addEventListener("click", (ev) => {
+        showSpinner()
+        let maskImage: Blob | null;
+        imageCanvas.toBlob((blob) => {
+          maskImage = blob
+          console.log(blob)
+          if (blob != null) {
+            sendData({
+              bodyLength: realBodyLength,
+              rumpHeight: realRumpHeight,
+              shoulderHeight: realShoulderHeight,
+              weight: weight,
+              distance: distance,
+              angle: angle,
+              maskedImage: blob,
+              bodyHeight: realBodyHeight,
+              originalImage: originalImage,
+              tag: state.tag
+            })
+          }
+          hideSpinner()
         })
       })
     })
@@ -180,11 +215,20 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   }
 })
 
-
 testButton.addEventListener('click', async () => {
   //testSingle(testContainer, yolo, new AngleProviderStatic(21.6), new DistanceProviderStatic(1.354))
   testAll(testContainer)
 })
+
+/**
+ * Takes a photo and appends it onto the test area @paramcapture with image stream
+ * @param imageCapture capture with image stream
+ * @return blob
+ */
+async function takePhoto(imageCapture: ImageCapture) {
+  const blob = await imageCapture.takePhoto()
+  return blob
+}
 
 function showResultOverlay() {
   resultOverlay.classList.remove("hidden")
@@ -216,19 +260,28 @@ type Payload = {
   bodyLength: number
   shoulderHeight: number
   rumpHeight: number
-  image: string
+  maskedImage: Blob
   weight: number
   distance: number
   angle: number
+  bodyHeight: number
+  originalImage: Blob
+  tag: string
 }
 
 async function sendData(payload: Payload) {
-  const request = new Request("http://localhost:8080", {
+  const formData = new FormData()
+  for (const [key, value] of Object.entries(payload)) {
+    if (typeof value === "number") {
+      formData.append(key, value.toString())
+    } else {
+      formData.append(key, value)
+    }
+  }
+
+  const request = new Request(state.apiPath, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
+    body: formData
   })
 
   try {
@@ -243,6 +296,14 @@ async function sendData(payload: Payload) {
     toast("error while sending")
     console.log(e)
   }
+}
+
+function showSpinner() {
+  document.querySelector("#spinner")?.classList.remove("hidden")
+}
+
+function hideSpinner() {
+  document.querySelector("#spinner")?.classList.add("hidden")
 }
 
 initPWA(app)

@@ -1,7 +1,8 @@
 import * as tf from '@tensorflow/tfjs'
+import { GoatPredictor } from './goat-predictor'
 
-export class YOLO {
-  debug = false
+export class YOLO implements GoatPredictor {
+  debug = true
   originalWidth: number | null = null
   originalHeight: number | null = null
   scaledOriginalWidth: number | null = null
@@ -200,6 +201,10 @@ export class YOLO {
 
       return binary
     })
+
+    detections.dispose()
+    segmentationMap.dispose()
+    confidences.dispose()
 
     if (this.debug) console.log("postprocess time: ", new Date().getTime() - startTime)
     return this.mask

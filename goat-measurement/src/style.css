@@ -356,3 +356,7 @@ button#pwa-refresh {
 #angle {
   color: white;
 }
+
+#spinner.hidden{
+  display: none;
+}
