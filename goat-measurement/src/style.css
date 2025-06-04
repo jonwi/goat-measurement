@@ -113,7 +113,6 @@ button {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
-  font-size: 1vw;
   font-weight: 500;
   font-family: inherit;
   background-color: #1a1a1a;
@@ -278,6 +277,7 @@ button#pwa-refresh {
 #app-container {
   display: flex;
   overflow: hidden;
+  background-color: #242424;
 }
 
 #right-controls {
@@ -346,7 +346,6 @@ button#pwa-refresh {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
-  font-size: 1vw;
   font-weight: 500;
   font-family: inherit;
   background-color: #1a1a1a;

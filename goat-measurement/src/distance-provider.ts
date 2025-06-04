@@ -1,7 +1,7 @@
 import { DepthEstimationPipelineOutput, max, min, pipeline, RawImage } from "@huggingface/transformers"
 
 export interface DistanceProvider {
-  distance(image: HTMLImageElement | HTMLVideoElement, debugCanvas: HTMLCanvasElement): Promise<number>
+  distance(image: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement, debugCanvas: HTMLCanvasElement): Promise<number>
 }
 
 export class DistanceProviderDepth implements DistanceProvider {
@@ -97,20 +97,7 @@ export class DistanceProviderInput implements DistanceProvider {
     inputContainer.classList.add("input")
     document.body.appendChild(inputContainer)
 
-    const imageName = image.src
     let initValue = 1.5
-    if (imageName.includes("Diego")) {
-      initValue = 2.3
-    }
-    if (imageName.includes("Zara")) {
-      initValue = 1.62
-    }
-    if (imageName.includes("Carina")) {
-      initValue = 1.59
-    }
-    if (imageName.includes("Twentyone")) {
-      initValue = 1.64
-    }
     input.value = `${initValue}`
 
     const distance = await new Promise<number>((resolve, _) => {

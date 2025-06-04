@@ -1,6 +1,6 @@
 
 export interface AngleProvider {
-  angle(image: HTMLImageElement | HTMLVideoElement): Promise<number>
+  angle(image: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement): Promise<number>
 }
 
 export class AngleProviderSensor implements AngleProvider {
@@ -15,7 +15,7 @@ export class AngleProviderSensor implements AngleProvider {
     })
   }
 
-  async angle(image: HTMLImageElement | HTMLVideoElement) {
+  async angle(image: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement) {
     if (this.lastAngle)
       return this.lastAngle
     return 20

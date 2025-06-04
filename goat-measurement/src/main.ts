@@ -139,7 +139,6 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
     //console.log(streamHighRes.getVideoTracks())
     const streamSettings = stream.getVideoTracks()[0].getSettings()
     const capture = new ImageCapture(stream.getVideoTracks()[0])
-    const originalImage = await takePhoto(capture)
     resizeOverlayImage(video.offsetWidth, video.offsetHeight, streamSettings.width ?? Number.MAX_VALUE, streamSettings.height ?? Number.MAX_VALUE, streamSettings.aspectRatio ?? 1)
     window.addEventListener("resize", () => {
       resizeOverlayImage(video.offsetWidth, video.offsetHeight, streamSettings.width ?? Number.MAX_VALUE, streamSettings.height ?? Number.MAX_VALUE, streamSettings.aspectRatio ?? 1)
@@ -154,8 +153,21 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
       const depthCanvas = document.createElement("canvas")
       const imageCanvas = document.createElement("canvas")
 
+      const tmpCanvas = document.createElement("canvas")
+      const originalImage = await takePhoto(capture)
+      const bitmap = await createImageBitmap(originalImage)
+      tmpCanvas.height = 640
+      tmpCanvas.width = 640
+      if (bitmap.height > bitmap.width) {
+        const diff = bitmap.height - bitmap.width
+        tmpCanvas.getContext("2d")!.drawImage(bitmap, 0, diff / 2, bitmap.width, bitmap.width, 0, 0, 640, 640)
+      } else {
+        const diff = bitmap.width - bitmap.height
+        tmpCanvas.getContext("2d")!.drawImage(bitmap, diff / 2, 0, bitmap.height, bitmap.height, 0, 0, 640, 640)
+      }
+
       const res = await weightPredictor.predictWeight(
-        video,
+        tmpCanvas,
         imageCanvas,
         resultCanvas,
         depthCanvas,
@@ -171,29 +183,29 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
       }
       valueContainer.innerHTML =
         `
-          <div class="container">Body length: ${realBodyLength.toFixed(2)}</div>
-          <div class="container">Shoulder height: ${realShoulderHeight.toFixed(2)}</div>
-          <div class="container">rump height: ${realRumpHeight.toFixed(2)}</div>
-          <div class="container">weight: ${weight.toFixed(2)}</div>
-          <div class="container">distance: ${distance.toFixed(2)}</div>
-          <div class="container">angle: ${angle.toFixed(2)}</div>
-          <input id="tagInput" value="${state.tag}"/>
-          <button id="btnSendData">Send Data<span id="spinner" class="hidden">Spinner</span></button>
-          `
+        <div class="container">Body length: ${realBodyLength.toFixed(2)}</div>
+        <div class="container">Shoulder height: ${realShoulderHeight.toFixed(2)}</div>
+        <div class="container">rump height: ${realRumpHeight.toFixed(2)}</div>
+        <div class="container">weight: ${weight.toFixed(2)}</div>
+        <div class="container">distance: ${distance.toFixed(2)}</div>
+        <div class="container">angle: ${angle.toFixed(2)}</div>
+        <input id="tagInput" value="${state.tag}"/>
+        <button id="btnSendData">Send Data<span id="spinner" class="hidden">Spinner</span></button>
+        `
       showResultOverlay()
 
       valueContainer.querySelector<HTMLInputElement>("#tagInput")?.addEventListener("change", (ev) => {
         state.tag = (ev.currentTarget as HTMLInputElement).value
       })
 
-      valueContainer.querySelector("button")?.addEventListener("click", (ev) => {
+      valueContainer.querySelector("button")?.addEventListener("click", async (ev) => {
         showSpinner()
         let maskImage: Blob | null;
-        imageCanvas.toBlob((blob) => {
+        imageCanvas.toBlob(async (blob) => {
           maskImage = blob
           console.log(blob)
           if (blob != null) {
-            sendData({
+            await sendData({
               bodyLength: realBodyLength,
               rumpHeight: realRumpHeight,
               shoulderHeight: realShoulderHeight,

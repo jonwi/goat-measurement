@@ -31,7 +31,7 @@ export class WeightPredictor {
    * @returns realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle
    */
   async predictWeight(
-    input: HTMLImageElement | HTMLVideoElement,
+    input: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement,
     imageCanvas: HTMLCanvasElement,
     resultCanvas: HTMLCanvasElement,
     depthCanvas: HTMLCanvasElement,
