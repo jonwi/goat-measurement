@@ -1,6 +1,5 @@
 import { AngleProviderStatic } from "./angle-provider"
 import { DistanceProviderSecond } from "./distance-provider"
-import { ONNX } from "./onnx"
 import { WeightPredictor } from "./weight-prediction"
 import { YOLO } from "./yolotfjs"
 

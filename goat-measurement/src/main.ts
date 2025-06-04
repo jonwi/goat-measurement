@@ -75,7 +75,7 @@ type AppState = {
 
 const state: AppState = {
   direction: "left",
-  calibration: 3.375,
+  calibration: 3.6856,
   apiPath: "http://localhost:8080",
   tag: "3605"
 }
