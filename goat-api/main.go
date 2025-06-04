@@ -206,6 +206,7 @@ func createTimeStampedDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory: %v", err)
 	}
+	log.Printf("created directory: %s", timestamp)
 
 	return timestamp, nil
 }
@@ -218,7 +219,9 @@ func main() {
 	}
 
 	var counter = Counter{}
+	var port = ":8080"
+	log.Printf("starting server on %s", port)
 
 	http.Handle("/", loggingMiddleware(enableCORS(http.HandlerFunc(goatDataHandler(dir, &counter)))))
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(port, nil))
 }
