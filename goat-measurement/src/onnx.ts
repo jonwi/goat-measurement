@@ -27,7 +27,7 @@ export class ONNX implements GoatPredictor {
     this.session = await ort.InferenceSession.create("best.onnx", { executionProviders: ["webgpu"] })
   }
 
-  async predict(img: HTMLImageElement, imageCanvas: HTMLCanvasElement, debugCanvas: HTMLCanvasElement) {
+  async predict(img: HTMLImageElement | HTMLVideoElement, imageCanvas: HTMLCanvasElement, debugCanvas: HTMLCanvasElement): Promise<[tf.Tensor2D | null, Box | null]> {
     const original = tf.browser.fromPixels(img)
     const pixelArray = new Float32Array(original.dataSync())
     console.log(pixelArray)
@@ -44,7 +44,9 @@ export class ONNX implements GoatPredictor {
     const [mask, box] = res
     console.log(mask)
 
-    await this.draw(imageCanvas, mask, box, original)
+    if (mask && box) {
+      await this.draw(imageCanvas, mask, box, original)
+    }
     original.dispose()
     return [null, null]
   }
@@ -53,7 +55,9 @@ export class ONNX implements GoatPredictor {
     const detectionArray = result[this.session!.outputNames[0]]
     const segmentationArray = result[this.session!.outputNames[1]]
     console.log()
+    //@ts-ignore
     const detectionTensor = tf.tensor(detectionArray.cpuData, detectionArray.dims)
+    //@ts-ignore
     const segmentationTensor = tf.tensor(segmentationArray.cpuData, segmentationArray.dims)
     console.log(detectionTensor)
     console.log(segmentationTensor)
@@ -65,7 +69,7 @@ export class ONNX implements GoatPredictor {
    *
    * @returns a binary tf.Tensor2D or null if no detection of quality was made
   */
-  postprocess(detectionTensor: tf.Tensor, segmentationTensor: tf.Tensor) {
+  postprocess(detectionTensor: tf.Tensor, segmentationTensor: tf.Tensor): [tf.Tensor2D | null, Box | null] {
     const startTime = new Date().getTime()
 
     const detections: tf.Tensor2D = detectionTensor.squeeze() // Shape: [37, 8400]
@@ -79,11 +83,11 @@ export class ONNX implements GoatPredictor {
 
     if (maxConfidence < 0.85) {
       if (this.debug) console.log(`max confidence is only ${maxConfidence}, therefore there will be no detection.`)
-      return null
+      return [null, null]
     }
     if (this.debug) console.log("maxConfidence", maxConfidence)
 
-    let box = null
+    let box: Box | null = null
 
     const mask = tf.tidy(() => {
       const maskCoeffs: tf.Tensor2D = detections.slice([this.xyxy! + this.classes!, maxIndex], [this.numMasks!, 1]).squeeze()
@@ -135,7 +139,7 @@ export class ONNX implements GoatPredictor {
    *
    * @param canvas target for drawing the result of the inference
   */
-  async draw(canvas: HTMLCanvasElement | null, mask: tf.Tensor2D, box: Box, original: tf.Tensor2D) {
+  async draw(canvas: HTMLCanvasElement | null, mask: tf.Tensor2D, box: Box, original: tf.Tensor3D) {
 
     let startTime = new Date().getTime()
 
