@@ -1,8 +1,9 @@
 import * as tf from '@tensorflow/tfjs'
 import { GoatPredictor } from './goat-predictor'
+import '@tensorflow/tfjs-backend-webgpu'
 
 export class YOLO implements GoatPredictor {
-  debug = true
+  debug = false
   originalWidth: number | null = null
   originalHeight: number | null = null
   scaledOriginalWidth: number | null = null
@@ -27,6 +28,7 @@ export class YOLO implements GoatPredictor {
   async loadModel() {
     const startTime = new Date().getTime()
 
+    await tf.setBackend("webgpu")
     this.model = await tf.loadGraphModel(`${import.meta.env.BASE_URL}model/model.json`)
       ;[this.inputHeight, this.inputWidth] = [640, 640]
       ;[this.xyxy, this.classes, this.numMasks] = [4, 1, 32]
@@ -244,7 +246,7 @@ export class YOLO implements GoatPredictor {
       canvas.style.width = `${this.scaledOriginalWidth}px`
       let ctx = canvas.getContext('2d')!
       // ctx.drawImage(image, 0, 0, this.scaledOriginalWidth, this.scaledOriginalHeight)
-      ctx.putImageData(new ImageData(await tf.browser.toPixels(this.inputImage), this.scaledOriginalWidth, this.scaledOriginalHeight), 0, 0)
+      tf.browser.draw(this.inputImage, canvas)
       ctx.drawImage(tempCanvas, 0, 0, this.scaledOriginalWidth, this.scaledOriginalHeight)
       ctx.rect(this.box.topX(), this.box.topY(), this.box.w, this.box.h)
       ctx.stroke()

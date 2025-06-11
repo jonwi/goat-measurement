@@ -1,5 +1,6 @@
 import { AngleProviderStatic } from "./angle-provider"
 import { DistanceProviderSecond } from "./distance-provider"
+import { ONNX } from "./onnx"
 import { WeightPredictor } from "./weight-prediction"
 import { YOLO } from "./yolotfjs"
 
@@ -282,7 +283,7 @@ async function testOutput(container: Element, bodyLength: number, shoulderHeight
     <div> distance: ${distance.toFixed(2)} ${groundTruth.Distance} <span>%: ${distancePercentage.toFixed(2)}</span></div>
     <div> angle: ${angle.toFixed(2)} ${groundTruth.Angle} <span>%: ${anglePercentage.toFixed(2)}</span></div>
     `
-  //container.appendChild(outputContainer)
+  container.appendChild(outputContainer)
 
   const result: TestResult = {
     bodyPercentage: bodyPercentage,

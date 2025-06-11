@@ -45,15 +45,20 @@ async function binaryRle(t: tf.Tensor1D) {
 export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLCanvasElement | null = null, direction: "left" | "right") {
   // mask is hxw 640x640
   let detection = mask.slice([box.topY(), box.topX()], [box.height(), box.width()])
-  let height = detection.shape[0]
-  const sm = detection.sum(0).greater(tf.scalar(0, "int32"))
-  const xStart = sm.argMax()
-  const xEnd = tf.scalar(detection.shape[1] - 1, "int32").sub(sm.reverse().argMax())
+  console.log(detection)
+  let height = box.height()
+  const range = tf.range(1, box.width() + 1, 1)
+  const filledColumns = detection.sum(0).toBool().toInt()
+  const xStart = filledColumns.mul(range.reverse()).argMax()
+  console.log(xStart.dataSync())
+  const xEnd = filledColumns.mul(range).argMax()
   detection = detection.slice([0, xStart.dataSync()[0]], [height, xEnd.sub(xStart).dataSync()[0]])
   let width = detection.shape[1]
   const x = xStart.dataSync()[0] + box.topX()
+  console.log("dection shape HxW:", detection.shape)
 
-  let lastIndices = tf.fill([width], height).sub(detection.reverse(0).argMax(0))
+  const colRange = tf.range(1, height + 1, 1)
+  let lastIndices = detection.mul(colRange.expandDims(-1)).argMax(0).sub(tf.scalar(1))
   const headWidth = Math.floor(width * 0.2) // this might need more finetuning
   const shoulderWidth = Math.floor(width * 0.4)
   const rumpWidth = Math.floor(width * 0.4)
@@ -96,29 +101,30 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
     .div(tf.scalar(2, "int32"))
   drawVerticalLine(canvas, newMiddle.dataSync()[0] + x, "purple")
 
-  const middleStart = detection.argMax(0).gather(newMiddle)
-  const middleEnd = lastIndices.gather(newMiddle)
+  const middleStart = detection.gather(newMiddle, 1).squeeze().mul(colRange.reverse()).argMax()
+  const middleEnd = detection.gather(newMiddle, 1).squeeze().mul(colRange).argMax()
   const middleLength = middleEnd.sub(middleStart)
   draw(canvas, newMiddle.dataSync()[0], middleStart.dataSync()[0], newMiddle.dataSync()[0], middleEnd.dataSync()[0], "yellow", x, box.topY())
   const bodyHeight = middleEnd.sub(middleStart)
 
   const bodyLengthIndex = middleLength.mul(tf.scalar(0.5)).add(middleStart).cast("int32")
-  const bodyLengthLine = detection.gather(bodyLengthIndex, 0)
+  const bodyLengthLine = detection.gather(bodyLengthIndex, 0).squeeze()
   if (bodyLengthLine.shape.length > 1) {
     console.error("bodyLengthLine is not a Tensor1D")
+    console.log(bodyLengthLine)
   }
   // @ts-ignore this is not a Tensor2D no clue why it thinks that we reduce the dimensions by one
   const [bodyLengthStart, bodyLengthEnd, bodyLength] = await binaryRle(bodyLengthLine)
   draw(canvas, bodyLengthStart, bodyLengthIndex.dataSync()[0], bodyLengthEnd, bodyLengthIndex.dataSync()[0], "black", x, box.topY())
 
   const shoulderIndex = lowestShoulderIndex.add(tf.scalar(shoulderSideStart, "int32"))
-  const shoulderStart = detection.argMax(0).gather(shoulderIndex)
+  const shoulderStart = detection.gather(shoulderIndex, 1).squeeze().mul(colRange.reverse()).argMax(0)
   const shoulderEnd = lastIndices.gather(shoulderIndex)
   draw(canvas, shoulderIndex.dataSync()[0], shoulderStart.dataSync()[0], shoulderIndex.dataSync()[0], shoulderEnd.dataSync()[0], "blue", x, box.topY())
   const shoulderHeight = shoulderEnd.sub(shoulderStart)
 
   const rumpIndex = lowestRumpIndex.add(tf.scalar(rumpSideStart, "int32"))
-  const rumpTop = detection.argMax(0).gather(tf.scalar(rumpSideStart, "int32").add(hill).cast("int32"))
+  const rumpTop = detection.gather(rumpIndex, 1).squeeze().mul(colRange.reverse()).argMax()
   const rumpBottom = lastIndices.gather(rumpIndex)
   draw(canvas, rumpIndex.dataSync()[0], rumpTop.dataSync()[0], rumpIndex.dataSync()[0], rumpBottom.dataSync()[0], "orange", x, box.topY())
   const rumpHeight = rumpBottom.sub(rumpTop)
@@ -220,7 +226,8 @@ function scaleToHeight(pixels: number, convertOptions: Options) {
  * @returns number of centimeters
  */
 function pixelsToCm(pixels: number, convertOptions: Options) {
-  return pixels / (convertOptions.calibration * convertOptions.calibration_distance / (convertOptions.distance * 100))
+  //return pixels / (convertOptions.calibration * convertOptions.calibration_distance / (convertOptions.distance * 100))
+  return pixels / (calibration(convertOptions.distance) / 100)
 }
 
 /**
@@ -276,4 +283,18 @@ const DefaultConvertOptions: Options = {
   orig_shape: [640, 640],
   mask_shape: [640, 640],
   angle: 20,
+}
+
+function calibration(distance: number) {
+  const meters = [0, 1, 1.5, 2, 2.5, 3, 3.5, 4, 10]
+  const lengths = [1000, 503, 398, 304, 242, 214, 188, 164, 80]
+  let counter = 0
+  while (meters[counter] < distance) {
+    counter += 1
+  }
+
+  const diff = meters[counter] - distance
+  const factor = diff / (meters[counter] - meters[counter - 1])
+  const factor2 = 1 - factor
+  return lengths[counter] * factor2 + lengths[counter - 1] * factor
 }
