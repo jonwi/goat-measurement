@@ -136,7 +136,7 @@ const SECOND_OUTSIDE = [
 ]
 
 export async function testAll(container: HTMLElement) {
-  const images = ONE
+  const images = SECOND_REFERENZ_NO_DIEGO
 
   container.innerHTML =
     `
@@ -155,7 +155,7 @@ export async function testAll(container: HTMLElement) {
   let lowestMeanWeight = 100
   let lowestCalibration = 0
 
-  for (let calibration of Array.from(Array(1).keys()).map((i) => 2.5 + i / 100)) {
+  for (let calibration of [3.6856]) {
     console.log("using calibration:", calibration)
     const bodyPcts = []
     const shoulderPcts = []

@@ -58,7 +58,7 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
   console.log("dection shape HxW:", detection.shape)
 
   const colRange = tf.range(1, height + 1, 1)
-  let lastIndices = detection.mul(colRange.expandDims(-1)).argMax(0).sub(tf.scalar(1))
+  let lastIndices = detection.mul(colRange.expandDims(-1)).argMax(0)
   const headWidth = Math.floor(width * 0.2) // this might need more finetuning
   const shoulderWidth = Math.floor(width * 0.4)
   const rumpWidth = Math.floor(width * 0.4)
@@ -82,18 +82,21 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
 
   const shoulderSide = lastIndices.slice(shoulderSideStart, shoulderWidth)
   const lowestShoulderIndex = shoulderSide.argMax()
-  drawVerticalLine(canvas, (await lowestShoulderIndex.data())[0] + x + shoulderSideStart, "green")
+  drawVerticalLine(canvas, lowestShoulderIndex.dataSync()[0] + x + shoulderSideStart, "green")
 
   const rumpSide = lastIndices.slice(rumpSideStart, rumpWidth)
   const lowestRumpIndex = rumpSide.argMax()
+  const firstIndex = detection.mul(colRange.reverse().expandDims(1)).argMax<tf.Tensor1D>(0).slice(rumpSideStart, rumpWidth)
+  console.log(firstIndex)
+  console.log(firstIndex.dataSync())
   let hill
   if (direction == "left") {
-    hill = firstHill(detection.argMax<tf.Tensor1D>(0).slice(rumpSideStart, rumpWidth))
+    hill = firstHill(detection.mul(colRange.reverse().expandDims(1)).argMax<tf.Tensor1D>(0).slice(rumpSideStart, rumpWidth))
   } else {
-    hill = tf.scalar(rumpWidth).sub(firstHill(detection.argMax<tf.Tensor1D>(0).slice(rumpSideStart, rumpWidth).reverse()))
+    hill = tf.scalar(rumpWidth).sub(detection.mul(colRange.reverse().expandDims(1)).argMax<tf.Tensor1D>(0).slice(rumpSideStart, rumpWidth).reverse())
   }
   drawVerticalLine(canvas, hill.dataSync()[0] + x + rumpSideStart, "grey")
-  drawVerticalLine(canvas, (await lowestRumpIndex.data())[0] + x + rumpSideStart, "red")
+  drawVerticalLine(canvas, lowestRumpIndex.dataSync()[0] + x + rumpSideStart, "red")
 
   const newMiddle = lowestShoulderIndex
     .add(tf.scalar(shoulderSideStart, "int32"))
@@ -124,7 +127,7 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
   const shoulderHeight = shoulderEnd.sub(shoulderStart)
 
   const rumpIndex = lowestRumpIndex.add(tf.scalar(rumpSideStart, "int32"))
-  const rumpTop = detection.gather(rumpIndex, 1).squeeze().mul(colRange.reverse()).argMax()
+  const rumpTop = detection.gather(hill.add(tf.scalar(rumpSideStart, "int32")), 1).squeeze().mul(colRange.reverse()).argMax()
   const rumpBottom = lastIndices.gather(rumpIndex)
   draw(canvas, rumpIndex.dataSync()[0], rumpTop.dataSync()[0], rumpIndex.dataSync()[0], rumpBottom.dataSync()[0], "orange", x, box.topY())
   const rumpHeight = rumpBottom.sub(rumpTop)
@@ -141,7 +144,7 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
 function firstHill(tensor: tf.Tensor1D) {
   const left = tensor.slice(0, tensor.shape[0] - 1)
   const right = tensor.slice(1, tensor.shape[0] - 1)
-  const leftDiff = left.sub(right).less(0).cast("int32").argMax()
+  const leftDiff = left.sub(right).less(0).toInt().mul(tf.range(tensor.shape[0], 1)).argMax()
   return leftDiff
 }
 
@@ -226,8 +229,8 @@ function scaleToHeight(pixels: number, convertOptions: Options) {
  * @returns number of centimeters
  */
 function pixelsToCm(pixels: number, convertOptions: Options) {
-  //return pixels / (convertOptions.calibration * convertOptions.calibration_distance / (convertOptions.distance * 100))
-  return pixels / (calibration(convertOptions.distance) / 100)
+  return pixels / (convertOptions.calibration * convertOptions.calibration_distance / (convertOptions.distance * 100))
+  //return pixels / (calibration(convertOptions.distance) / 100)
 }
 
 /**
