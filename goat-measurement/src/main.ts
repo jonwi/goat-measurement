@@ -64,6 +64,7 @@ const directionButton = document.querySelector<HTMLButtonElement>("#toggleDirect
 const calibrationInput = document.querySelector<HTMLInputElement>("#calibrationValue")!
 const angleContainer = document.querySelector<HTMLDivElement>("#angle")!
 const apiPathInput = document.querySelector<HTMLInputElement>("#apiPath")!
+const rightControls = document.querySelector<HTMLDivElement>("#right-controls")!
 
 type Direction = "left" | "right"
 type AppState = {
@@ -71,13 +72,21 @@ type AppState = {
   calibration: number
   apiPath: string
   tag: string
+  preferredDeviceId: string | null
+  streamSettings: MediaTrackSettings | null
+  capture: ImageCapture | null
+  track: MediaStreamTrack | null
 }
 
 const state: AppState = {
   direction: "left",
   calibration: 3.6856,
   apiPath: "http://localhost:8080",
-  tag: "3605"
+  tag: "3605",
+  preferredDeviceId: null,
+  streamSettings: null,
+  capture: null,
+  track: null,
 }
 
 calibrationInput.addEventListener("change", () => {
@@ -88,6 +97,27 @@ apiPathInput.addEventListener("change", () => {
   state.apiPath = apiPathInput.value
 })
 apiPathInput.value = state.apiPath
+
+// Append video devices
+navigator.mediaDevices.enumerateDevices().then((d) => {
+  d = d.filter((d) => d.kind === "videoinput")
+  const select = document.createElement("select")
+  for (let device of d) {
+    const option = document.createElement("option")
+    option.value = device.deviceId
+    option.innerText = device.label
+    select.appendChild(option)
+  }
+  rightControls.appendChild(select)
+
+  select.addEventListener("change", (ev) => {
+    state.preferredDeviceId = ev.target.value
+    setupVideo()
+  })
+
+  state.preferredDeviceId = select.value
+  setupVideo()
+})
 
 appContainer.style.width = `${window.innerWidth}px`
 appContainer.style.height = `${window.innerHeight}px`
@@ -131,58 +161,72 @@ setInterval(async () => {
   angleContainer.innerText = `${angle.toFixed(2)}`
 }, 100)
 
+window.addEventListener("resize", () => {
+  resizeOverlayImage(video.offsetWidth, video.offsetHeight)
+})
 // @ts-ignore this is not supported in all browsers
 navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   if (perm.state != 'denied') {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 640 } } })!
-    //const streamHighRes = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } })!
-    //console.log(streamHighRes.getVideoTracks())
-    const streamSettings = stream.getVideoTracks()[0].getSettings()
-    const capture = new ImageCapture(stream.getVideoTracks()[0])
-    resizeOverlayImage(video.offsetWidth, video.offsetHeight, streamSettings.width ?? Number.MAX_VALUE, streamSettings.height ?? Number.MAX_VALUE, streamSettings.aspectRatio ?? 1)
-    window.addEventListener("resize", () => {
-      resizeOverlayImage(video.offsetWidth, video.offsetHeight, streamSettings.width ?? Number.MAX_VALUE, streamSettings.height ?? Number.MAX_VALUE, streamSettings.aspectRatio ?? 1)
-    })
+    await setupVideo()
+  } else {
+    toast("camera permission denied")
+  }
+})
 
-    video.srcObject = stream
-    video.onloadedmetadata = () => {
-      video.play()
-    }
+async function setupVideo() {
+  if (!state.preferredDeviceId) return
+  if (state.track) {
+    state.track.stop()
+  }
 
-    mainButton.addEventListener("click", async () => {
-      const depthCanvas = document.createElement("canvas")
-      const imageCanvas = document.createElement("canvas")
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: state.preferredDeviceId, facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 640 } } })!
+  console.log(stream.getVideoTracks())
+  state.track = stream.getVideoTracks()[0]
+  state.streamSettings = state.track.getSettings()
+  state.capture = new ImageCapture(state.track)
+  resizeOverlayImage(video.offsetWidth, video.offsetHeight)
 
-      const tmpCanvas = document.createElement("canvas")
-      const originalImage = await takePhoto(capture)
-      const bitmap = await createImageBitmap(originalImage)
-      tmpCanvas.height = 640
-      tmpCanvas.width = 640
-      if (bitmap.height > bitmap.width) {
-        const diff = bitmap.height - bitmap.width
-        tmpCanvas.getContext("2d")!.drawImage(bitmap, 0, diff / 2, bitmap.width, bitmap.width, 0, 0, 640, 640)
-      } else {
-        const diff = bitmap.width - bitmap.height
-        tmpCanvas.getContext("2d")!.drawImage(bitmap, diff / 2, 0, bitmap.height, bitmap.height, 0, 0, 640, 640)
-      }
+  video.srcObject = stream
+  video.onloadedmetadata = () => {
+    video.play()
+  }
+}
 
-      const res = await weightPredictor.predictWeight(
-        tmpCanvas,
-        imageCanvas,
-        resultCanvas,
-        depthCanvas,
-        state.direction,
-        state.calibration,
-      )
+mainButton.addEventListener("click", async () => {
+  if (!state.capture) return
+  const depthCanvas = document.createElement("canvas")
+  const imageCanvas = document.createElement("canvas")
 
-      let [realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = [0, 0, 0, 0, 0, 0, 0]
-      if (res == null) {
-        toast("<span>Keine Ziege erkannt</span>")
-      } else {
-        ;[realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = res
-      }
-      valueContainer.innerHTML =
-        `
+  const tmpCanvas = document.createElement("canvas")
+  const originalImage = await takePhoto(state.capture)
+  const bitmap = await createImageBitmap(originalImage)
+  tmpCanvas.height = 640
+  tmpCanvas.width = 640
+  if (bitmap.height > bitmap.width) {
+    const diff = bitmap.height - bitmap.width
+    tmpCanvas.getContext("2d")!.drawImage(bitmap, 0, diff / 2, bitmap.width, bitmap.width, 0, 0, 640, 640)
+  } else {
+    const diff = bitmap.width - bitmap.height
+    tmpCanvas.getContext("2d")!.drawImage(bitmap, diff / 2, 0, bitmap.height, bitmap.height, 0, 0, 640, 640)
+  }
+
+  const res = await weightPredictor.predictWeight(
+    tmpCanvas,
+    imageCanvas,
+    resultCanvas,
+    depthCanvas,
+    state.direction,
+    state.calibration,
+  )
+
+  let [realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = [0, 0, 0, 0, 0, 0, 0]
+  if (res == null) {
+    toast("<span>Keine Ziege erkannt</span>")
+  } else {
+    ;[realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = res
+  }
+  valueContainer.innerHTML =
+    `
         <div class="container">Body length: ${realBodyLength.toFixed(2)}</div>
         <div class="container">Shoulder height: ${realShoulderHeight.toFixed(2)}</div>
         <div class="container">rump height: ${realRumpHeight.toFixed(2)}</div>
@@ -192,39 +236,35 @@ navigator.permissions.query({ name: "camera" }).then(async (perm) => {
         <input id="tagInput" value="${state.tag}"/>
         <button id="btnSendData">Send Data<span id="spinner" class="hidden">Spinner</span></button>
         `
-      showResultOverlay()
+  showResultOverlay()
 
-      valueContainer.querySelector<HTMLInputElement>("#tagInput")?.addEventListener("change", (ev) => {
-        state.tag = (ev.currentTarget as HTMLInputElement).value
-      })
+  valueContainer.querySelector<HTMLInputElement>("#tagInput")?.addEventListener("change", (ev) => {
+    state.tag = (ev.currentTarget as HTMLInputElement).value
+  })
 
-      valueContainer.querySelector("button")?.addEventListener("click", async (ev) => {
-        showSpinner()
-        let maskImage: Blob | null;
-        imageCanvas.toBlob(async (blob) => {
-          maskImage = blob
-          console.log(blob)
-          if (blob != null) {
-            await sendData({
-              bodyLength: realBodyLength,
-              rumpHeight: realRumpHeight,
-              shoulderHeight: realShoulderHeight,
-              weight: weight,
-              distance: distance,
-              angle: angle,
-              maskedImage: blob,
-              bodyHeight: realBodyHeight,
-              originalImage: originalImage,
-              tag: state.tag
-            })
-          }
-          hideSpinner()
+  valueContainer.querySelector("button")?.addEventListener("click", async (ev) => {
+    showSpinner()
+    let maskImage: Blob | null;
+    imageCanvas.toBlob(async (blob) => {
+      maskImage = blob
+      console.log(blob)
+      if (blob != null) {
+        await sendData({
+          bodyLength: realBodyLength,
+          rumpHeight: realRumpHeight,
+          shoulderHeight: realShoulderHeight,
+          weight: weight,
+          distance: distance,
+          angle: angle,
+          maskedImage: blob,
+          bodyHeight: realBodyHeight,
+          originalImage: originalImage,
+          tag: state.tag
         })
-      })
+      }
+      hideSpinner()
     })
-  } else {
-    toast("camera permission denied")
-  }
+  })
 })
 
 testButton.addEventListener('click', async () => {
@@ -250,11 +290,16 @@ function hideResultOverlay() {
   resultOverlay.classList.add("hidden")
 }
 
-function resizeOverlayImage(videoWidth: number, videoHeight: number, streamWidth: number, streamHeight: number, aspectRatio: number) {
-  const minSize = Math.min(videoWidth, videoHeight)
-  console.log("overlay resize", videoWidth, videoHeight, streamWidth, streamHeight)
-  overlayImage.style.width = `${minSize / aspectRatio}px`
-  overlayImage.style.height = `${minSize}px`
+function resizeOverlayImage(videoWidth: number, videoHeight: number) {
+  if (state.streamSettings) {
+    const streamWidth = state.streamSettings.width ?? Number.MAX_VALUE
+    const streamHeight = state.streamSettings.height ?? Number.MAX_VALUE
+    const aspectRatio = state.streamSettings.aspectRatio ?? 1
+    const minSize = Math.min(videoWidth, videoHeight)
+    console.log("overlay resize", videoWidth, videoHeight, streamWidth, streamHeight)
+    overlayImage.style.width = `${minSize / aspectRatio}px`
+    overlayImage.style.height = `${minSize}px`
+  }
 }
 
 function toast(html: string) {
