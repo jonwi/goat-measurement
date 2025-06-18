@@ -1,6 +1,5 @@
 import { AngleProviderStatic } from "./angle-provider"
 import { DistanceProviderSecond } from "./distance-provider"
-import { ONNX } from "./onnx"
 import { WeightPredictor } from "./weight-prediction"
 import { YOLO } from "./yolotfjs"
 
@@ -141,7 +140,7 @@ export async function testAll(container: HTMLElement) {
   container.innerHTML =
     `
     <div>
-      ${images.map((img, i) => { return createResultContainer(img) }).join("")}
+      ${images.map((img) => { return createResultContainer(img) }).join("")}
     </div>
     `
   let rContainers = container.querySelectorAll(".result-container")
@@ -152,10 +151,11 @@ export async function testAll(container: HTMLElement) {
     new DistanceProviderSecond(),
   )
 
-  let lowestMeanWeight = 100
-  let lowestCalibration = 0
+  let lowestMeanWeight = 1000000
+  let lowestCalibration = 1000
+  let calibration = 2.5
 
-  for (let calibration of [3.6856]) {
+  while (true) {
     console.log("using calibration:", calibration)
     const bodyPcts = []
     const shoulderPcts = []
@@ -176,23 +176,24 @@ export async function testAll(container: HTMLElement) {
       }
     }
     const meanWeight = mean(weightPcts)
-    if (meanWeight < lowestMeanWeight) {
-      lowestMeanWeight = meanWeight
-      lowestCalibration = calibration
-      console.log("new lowest weight", meanWeight, calibration)
-    }
+
     console.log("finished all tests")
     console.log("BodyLength mape:", mean(bodyPcts))
     console.log("ShoulderHeight mape:", mean(shoulderPcts))
     console.log("RumpHeight mape:", mean(rumpPcts))
     console.log("Weight mape:", mean(weightPcts))
+
+    if (meanWeight < lowestMeanWeight) {
+      lowestMeanWeight = meanWeight
+      lowestCalibration = calibration
+      console.log("new lowest weight", meanWeight, calibration)
+      calibration += 0.01
+    } else {
+      break
+    }
   }
 
   console.log("lowest weight mape at", lowestCalibration, lowestMeanWeight)
-}
-
-function meanAbsolutePercentageError(arr: number[]) {
-  return arr.map((c) => Math.abs(c - 1)).reduce((p, c) => p + c, 0) / arr.length
 }
 
 function mean(arr: number[]) {
@@ -203,6 +204,10 @@ function absolutePercentageError(pred: number, truth: number) {
   return Math.abs(pred - truth) / truth
 }
 
+function squarePercentageError(pred: number, truth: number) {
+  return (pred - truth) * (pred - truth)
+}
+
 function createResultContainer(imgSrc: string) {
   return `
   <div class="result-container">
@@ -210,6 +215,8 @@ function createResultContainer(imgSrc: string) {
       <img src="${imgSrc}" />
     </div>
     <canvas class="debug-canvas" ></canvas>
+    <div class="data-container">
+    </div>
   </div>
 `
 }
@@ -225,11 +232,12 @@ async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: 
     debugCanvas,
     depthCanvas,
     groundTruth["Direction"],
-    calibration
+    calibration,
+    () => { }
   )
   if (res != null) {
     const [realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = res
-    const result = await testOutput(container, realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle, groundTruth)
+    const result = await testOutput(container.querySelector(".data-container")!, realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle, groundTruth)
     return result
   }
   return null
@@ -266,12 +274,12 @@ async function getData(imagePrefix: string): Promise<ImageData> {
 
 async function testOutput(container: Element, bodyLength: number, shoulderHeight: number, rumpHeight: number, bodyHeight: number, weight: number, distance: number, angle: number, groundTruth: ImageData) {
   const outputContainer = document.createElement("div")
-  const bodyPercentage = absolutePercentageError(bodyLength, groundTruth.BodyLength)
-  const shoulderPercentage = absolutePercentageError(shoulderHeight, groundTruth.ShoulderHeight)
-  const rumpPercentage = absolutePercentageError(rumpHeight, groundTruth.RumpHeight)
-  const weightPercentage = absolutePercentageError(weight, groundTruth.Weight)
-  const anglePercentage = absolutePercentageError(angle, groundTruth.Angle)
-  const distancePercentage = absolutePercentageError(distance, groundTruth.Distance)
+  const bodyPercentage = squarePercentageError(bodyLength, groundTruth.BodyLength)
+  const shoulderPercentage = squarePercentageError(shoulderHeight, groundTruth.ShoulderHeight)
+  const rumpPercentage = squarePercentageError(rumpHeight, groundTruth.RumpHeight)
+  const weightPercentage = squarePercentageError(weight, groundTruth.Weight)
+  const anglePercentage = squarePercentageError(angle, groundTruth.Angle)
+  const distancePercentage = squarePercentageError(distance, groundTruth.Distance)
 
   outputContainer.innerHTML =
     `
@@ -283,6 +291,9 @@ async function testOutput(container: Element, bodyLength: number, shoulderHeight
     <div> distance: ${distance.toFixed(2)} ${groundTruth.Distance} <span>%: ${distancePercentage.toFixed(2)}</span></div>
     <div> angle: ${angle.toFixed(2)} ${groundTruth.Angle} <span>%: ${anglePercentage.toFixed(2)}</span></div>
     `
+  if (container.childElementCount == 3) {
+    container.removeChild(container.firstElementChild!)
+  }
   container.appendChild(outputContainer)
 
   const result: TestResult = {

@@ -27,6 +27,7 @@ export class ONNX implements GoatPredictor {
   async loadModel() {
     this.session = await ort.InferenceSession.create("best.onnx", { executionProviders: ["webgpu"] })
     console.log(this.session)
+    return true
   }
 
   async predict(img: HTMLImageElement | HTMLVideoElement, imageCanvas: HTMLCanvasElement, debugCanvas: HTMLCanvasElement): Promise<[tf.Tensor2D | null, Box | null]> {

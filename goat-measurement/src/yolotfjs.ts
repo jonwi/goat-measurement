@@ -28,7 +28,14 @@ export class YOLO implements GoatPredictor {
   async loadModel() {
     const startTime = new Date().getTime()
 
-    await tf.setBackend("webgpu")
+    const success = await tf.setBackend("webgpu")
+    if (!success) {
+      console.log("could not initialize webgpu")
+      const success = await tf.setBackend("webgl")
+      if (!success) return false
+      console.log("initilized webgl")
+    }
+
     this.model = await tf.loadGraphModel(`${import.meta.env.BASE_URL}model/model.json`)
       ;[this.inputHeight, this.inputWidth] = [640, 640]
       ;[this.xyxy, this.classes, this.numMasks] = [4, 1, 32]
@@ -40,6 +47,7 @@ export class YOLO implements GoatPredictor {
       console.log("model loaded in: ", new Date().getTime() - startTime)
       console.log(tf.getBackend())
     }
+    return true
   }
 
   /**

@@ -91,7 +91,11 @@ export class DistanceProviderInput implements DistanceProvider {
     const inputContainer = document.createElement("div")
     const input = document.createElement("input")
     const acceptButton = document.createElement("button")
+    const label = document.createElement("label")
+    label.innerText = "Distance:"
     acceptButton.innerText = "Accept"
+    acceptButton.style.marginLeft = "auto"
+    inputContainer.appendChild(label)
     inputContainer.appendChild(input)
     inputContainer.appendChild(acceptButton)
     inputContainer.classList.add("input")

@@ -1,9 +1,9 @@
 import './style.css'
-import { DistanceProviderInput, DistanceProviderSecond, DistanceProviderStatic } from './distance-provider.ts'
+import { DistanceProviderInput } from './distance-provider.ts'
 import { initPWA } from './pwa.ts'
 import { YOLO } from './yolotfjs.ts'
 import './utils.ts'
-import { AngleProviderStatic, AngleProviderSensor } from './angle-provider.ts'
+import { AngleProviderSensor } from './angle-provider.ts'
 import { testAll } from './testing.ts'
 import { WeightPredictor } from './weight-prediction.ts'
 
@@ -111,7 +111,7 @@ navigator.mediaDevices.enumerateDevices().then((d) => {
   rightControls.appendChild(select)
 
   select.addEventListener("change", (ev) => {
-    state.preferredDeviceId = ev.target.value
+    state.preferredDeviceId = (ev.target as HTMLSelectElement).value
     setupVideo()
   })
 
@@ -180,7 +180,6 @@ async function setupVideo() {
   }
 
   const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: state.preferredDeviceId, facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 640 } } })!
-  console.log(stream.getVideoTracks())
   state.track = stream.getVideoTracks()[0]
   state.streamSettings = state.track.getSettings()
   state.capture = new ImageCapture(state.track)
@@ -217,6 +216,9 @@ mainButton.addEventListener("click", async () => {
     depthCanvas,
     state.direction,
     state.calibration,
+    (message) => {
+      toast(message)
+    }
   )
 
   let [realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle] = [0, 0, 0, 0, 0, 0, 0]
@@ -242,7 +244,7 @@ mainButton.addEventListener("click", async () => {
     state.tag = (ev.currentTarget as HTMLInputElement).value
   })
 
-  valueContainer.querySelector("button")?.addEventListener("click", async (ev) => {
+  valueContainer.querySelector("button")?.addEventListener("click", async () => {
     showSpinner()
     let maskImage: Blob | null;
     imageCanvas.toBlob(async (blob) => {

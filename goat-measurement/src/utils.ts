@@ -34,6 +34,40 @@ async function binaryRle(t: tf.Tensor1D) {
 }
 
 /**
+ * Calculates the longest line of consecutive ones
+ * This does not use any gpu acceleration
+ *
+ * @param t tensor
+ * @returns begin, end, length
+ */
+function syncBinaryRle(t: tf.Tensor1D) {
+  const data = t.dataSync()
+  let length = 0
+  let currentStartIndex = 0
+  let maxLength = 0
+  let startIndex = 0
+  let endIndex = 0
+
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] === 1) {
+      if (length === 0) {
+        currentStartIndex = i
+      }
+      length++
+      if (length > maxLength) {
+        maxLength = length
+        startIndex = currentStartIndex
+        endIndex = i
+      }
+    } else {
+      length = 0
+    }
+  }
+  return [startIndex, endIndex, maxLength]
+}
+
+
+/**
  * Extracts measurements in pixels from the mask
  *
  * @param mask a masked image of the goat
@@ -45,17 +79,14 @@ async function binaryRle(t: tf.Tensor1D) {
 export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLCanvasElement | null = null, direction: "left" | "right") {
   // mask is hxw 640x640
   let detection = mask.slice([box.topY(), box.topX()], [box.height(), box.width()])
-  console.log(detection)
   let height = box.height()
   const range = tf.range(1, box.width() + 1, 1)
   const filledColumns = detection.sum(0).toBool().toInt()
   const xStart = filledColumns.mul(range.reverse()).argMax()
-  console.log(xStart.dataSync())
   const xEnd = filledColumns.mul(range).argMax()
   detection = detection.slice([0, xStart.dataSync()[0]], [height, xEnd.sub(xStart).dataSync()[0]])
   let width = detection.shape[1]
   const x = xStart.dataSync()[0] + box.topX()
-  console.log("dection shape HxW:", detection.shape)
 
   const colRange = tf.range(1, height + 1, 1)
   let lastIndices = detection.mul(colRange.expandDims(-1)).argMax(0)
@@ -87,8 +118,6 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
   const rumpSide = lastIndices.slice(rumpSideStart, rumpWidth)
   const lowestRumpIndex = rumpSide.argMax()
   const firstIndex = detection.mul(colRange.reverse().expandDims(1)).argMax<tf.Tensor1D>(0).slice(rumpSideStart, rumpWidth)
-  console.log(firstIndex)
-  console.log(firstIndex.dataSync())
   let hill
   if (direction == "left") {
     hill = firstHill(detection.mul(colRange.reverse().expandDims(1)).argMax<tf.Tensor1D>(0).slice(rumpSideStart, rumpWidth))
@@ -117,7 +146,7 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
     console.log(bodyLengthLine)
   }
   // @ts-ignore this is not a Tensor2D no clue why it thinks that we reduce the dimensions by one
-  const [bodyLengthStart, bodyLengthEnd, bodyLength] = await binaryRle(bodyLengthLine)
+  const [bodyLengthStart, bodyLengthEnd, bodyLength] = syncBinaryRle(bodyLengthLine)
   draw(canvas, bodyLengthStart, bodyLengthIndex.dataSync()[0], bodyLengthEnd, bodyLengthIndex.dataSync()[0], "black", x, box.topY())
 
   const shoulderIndex = lowestShoulderIndex.add(tf.scalar(shoulderSideStart, "int32"))

@@ -11,7 +11,7 @@ export class WeightPredictor {
   angleProvider: AngleProvider
   distanceProvider: DistanceProvider
   yolo: GoatPredictor
-  yoloProm: Promise<void>
+  yoloProm: Promise<boolean>
 
   constructor(yolo: GoatPredictor, angleProvider: AngleProvider, distanceProvider: DistanceProvider) {
     this.angleProvider = angleProvider
@@ -28,6 +28,7 @@ export class WeightPredictor {
    * @param depthCanvas this canvas can show depth information
    * @param direction this is the direction the goat is facing
    * @param calibration this value is used to get cm from pixels
+   * @param onError function called when any error occurs with error message
    * @returns realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle
    */
   async predictWeight(
@@ -36,9 +37,15 @@ export class WeightPredictor {
     resultCanvas: HTMLCanvasElement,
     depthCanvas: HTMLCanvasElement,
     direction: "right" | "left",
-    calibration: number
+    calibration: number,
+    onError: (message: string) => void
   ) {
-    await this.yoloProm
+    const success = await this.yoloProm
+    if (!success) {
+      onError("Could not initialize goat model.")
+      return null
+    }
+
     const maskProm = this.yolo.predict(input, imageCanvas, resultCanvas)
     const distanceProm = this.distanceProvider.distance(input, depthCanvas)
     const angleProm = this.angleProvider.angle(input)

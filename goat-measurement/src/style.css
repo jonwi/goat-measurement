@@ -331,15 +331,16 @@ button#pwa-refresh {
   left: 0;
   right: 0;
   margin: 0 auto;
-  width: 300px;
+  width: fit-content;
   background: #242424;
   border-radius: 8px;
   border: .1em white solid;
   padding: 1em;
   display: flex;
   flex-direction: column;
-  align-items: end;
+  align-items: start;
   justify-content: space-around;
+  color: white;
 }
 
 .input > input {
