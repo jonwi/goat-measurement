@@ -156,7 +156,6 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
   const shoulderHeight = shoulderEnd.sub(shoulderStart)
 
   const rumpIndex = lowestRumpIndex.add(tf.scalar(rumpSideStart, "int32"))
-  hill.print()
   const rumpTop = detection.gather(hill.add(tf.scalar(rumpSideStart, "int32")).toInt(), 1).squeeze().mul(colRange.reverse()).argMax()
   const rumpBottom = lastIndices.gather(rumpIndex)
   draw(canvas, rumpIndex.dataSync()[0], rumpTop.dataSync()[0], rumpIndex.dataSync()[0], rumpBottom.dataSync()[0], "orange", x, box.topY())
