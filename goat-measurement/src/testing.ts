@@ -117,7 +117,7 @@ const SECOND_DETECTED = [
 ]
 
 const ONE = [
-  "test/25_image.png",
+  "test/40_image.png",
 ]
 
 const SECOND_OUTSIDE = [
@@ -135,7 +135,7 @@ const SECOND_OUTSIDE = [
 ]
 
 export async function testAll(container: HTMLElement) {
-  const images = SECOND_REFERENZ_NO_DIEGO
+  const images = ONE
 
   container.innerHTML =
     `
@@ -155,42 +155,40 @@ export async function testAll(container: HTMLElement) {
   let lowestCalibration = 1000
   let calibration = 2.5
 
-  while (true) {
-    console.log("using calibration:", calibration)
-    const bodyPcts = []
-    const shoulderPcts = []
-    const rumpPcts = []
-    const weightPcts = []
-    for (let rContainer of rContainers) {
-      const imageEl = rContainer.querySelector("img")!
-      const debugCanvas = rContainer.querySelector<HTMLCanvasElement>(".debug-canvas")!
-      const depthCanvas = rContainer.querySelector<HTMLCanvasElement>(".depth-canvas")!
-      await imageEl.decode()
+  console.log("using calibration:", calibration)
+  const bodyPcts = []
+  const shoulderPcts = []
+  const rumpPcts = []
+  const weightPcts = []
+  for (let rContainer of rContainers) {
+    const imageEl = rContainer.querySelector("img")!
+    const debugCanvas = rContainer.querySelector<HTMLCanvasElement>(".debug-canvas")!
+    const depthCanvas = rContainer.querySelector<HTMLCanvasElement>(".depth-canvas")!
+    await imageEl.decode()
 
-      const testResult = await test(rContainer, imageEl, debugCanvas, depthCanvas, weightPredictor, calibration)
-      if (testResult != null) {
-        bodyPcts.push(testResult.bodyPercentage)
-        shoulderPcts.push(testResult.shoulderPercentage)
-        rumpPcts.push(testResult.rumpPercentage)
-        weightPcts.push(testResult.weightPercentage)
-      }
+    const testResult = await test(rContainer, imageEl, debugCanvas, depthCanvas, weightPredictor, calibration)
+    if (testResult != null) {
+      bodyPcts.push(testResult.bodyPercentage)
+      shoulderPcts.push(testResult.shoulderPercentage)
+      rumpPcts.push(testResult.rumpPercentage)
+      weightPcts.push(testResult.weightPercentage)
     }
-    const meanWeight = mean(weightPcts)
+  }
+  const meanWeight = mean(weightPcts)
 
-    console.log("finished all tests")
-    console.log("BodyLength mape:", mean(bodyPcts))
-    console.log("ShoulderHeight mape:", mean(shoulderPcts))
-    console.log("RumpHeight mape:", mean(rumpPcts))
-    console.log("Weight mape:", mean(weightPcts))
+  console.log("finished all tests")
+  console.log("BodyLength mape:", mean(bodyPcts))
+  console.log("ShoulderHeight mape:", mean(shoulderPcts))
+  console.log("RumpHeight mape:", mean(rumpPcts))
+  console.log("Weight mape:", mean(weightPcts))
 
-    if (meanWeight < lowestMeanWeight) {
-      lowestMeanWeight = meanWeight
-      lowestCalibration = calibration
-      console.log("new lowest weight", meanWeight, calibration)
-      calibration += 0.01
-    } else {
-      break
-    }
+  if (meanWeight < lowestMeanWeight) {
+    lowestMeanWeight = meanWeight
+    lowestCalibration = calibration
+    console.log("new lowest weight", meanWeight, calibration)
+    calibration += 0.01
+  } else {
+    //break
   }
 
   console.log("lowest weight mape at", lowestCalibration, lowestMeanWeight)

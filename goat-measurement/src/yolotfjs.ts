@@ -241,20 +241,21 @@ export class YOLO implements GoatPredictor {
     if (this.debug) console.log("scaled", this.scaledOriginalWidth, this.scaledOriginalHeight)
 
     if (canvas) {
-      let arr = await tf.browser.toPixels(newOverlay)
-      newOverlay.dispose()
-      let tempCanvas = document.createElement("canvas")
-      tempCanvas.width = this.scaledOriginalWidth
-      tempCanvas.height = this.scaledOriginalHeight
-      let tmpCtx = tempCanvas.getContext('2d')!
-      tmpCtx.putImageData(new ImageData(arr, this.scaledOriginalWidth, this.scaledOriginalHeight), 0, 0)
       canvas.height = this.scaledOriginalHeight
       canvas.width = this.scaledOriginalWidth
       canvas.style.height = `${this.scaledOriginalHeight}px`
       canvas.style.width = `${this.scaledOriginalWidth}px`
+
+      await tf.browser.toPixels(this.inputImage, canvas)
+
+      let tempCanvas = document.createElement("canvas")
+      tempCanvas.width = this.scaledOriginalWidth
+      tempCanvas.height = this.scaledOriginalHeight
+      await tf.browser.toPixels(newOverlay, tempCanvas)
+      newOverlay.dispose()
       let ctx = canvas.getContext('2d')!
       // ctx.drawImage(image, 0, 0, this.scaledOriginalWidth, this.scaledOriginalHeight)
-      tf.browser.draw(this.inputImage, canvas)
+      //tf.browser.draw(this.inputImage, canvas)
       ctx.drawImage(tempCanvas, 0, 0, this.scaledOriginalWidth, this.scaledOriginalHeight)
       ctx.rect(this.box.topX(), this.box.topY(), this.box.w, this.box.h)
       ctx.stroke()
