@@ -1,0 +1,92 @@
+{
+    "010610469975": {
+        "Tag": "010610469975",
+        "Name": "Twentyone",
+        "Weight": 67.3,
+        "BodyLength": 83,
+        "Heartgirth": 98,
+        "RumpHeight": 74,
+        "ShoulderHeight": 70
+    },
+    "010610469972": {
+        "Tag": "010610469972",
+        "Name": "Carina",
+        "Weight": 71.6,
+        "BodyLength": 89,
+        "Heartgirth": 97,
+        "RumpHeight": 74,
+        "ShoulderHeight": 71
+    },
+    "10610536153": {
+        "Tag": "10610536153",
+        "Name": "Ljiosadis",
+        "Weight": 58,
+        "BodyLength": 81,
+        "Heartgirth": 92,
+        "RumpHeight": 72,
+        "ShoulderHeight": 69
+    },
+    "10610470885": {
+        "Tag": "10610470885",
+        "Name": "Lori",
+        "Weight": 39.4,
+        "BodyLength": 71,
+        "Heartgirth": 80,
+        "RumpHeight": 69,
+        "ShoulderHeight": 65
+    },
+    "010610536162": {
+        "Tag": "010610536162",
+        "Name": "Diego",
+        "Weight": 72.5,
+        "BodyLength": 88,
+        "Heartgirth": 101,
+        "RumpHeight": 77,
+        "ShoulderHeight": 79
+    },
+    "10610436175": {
+        "Tag": "10610436175",
+        "Name": "",
+        "Weight": 37.1,
+        "BodyLength": 67,
+        "Heartgirth": 78,
+        "RumpHeight": 67,
+        "ShoulderHeight": 63
+    },
+    "10610436171": {
+        "Tag": "10610436171",
+        "Name": "",
+        "Weight": 30.7,
+        "BodyLength": 65,
+        "Heartgirth": 80,
+        "RumpHeight": 62,
+        "ShoulderHeight": 60
+    },
+    "10610436179": {
+        "Tag": "10610436179",
+        "Name": "",
+        "Weight": 38.6,
+        "BodyLength": 67,
+        "Heartgirth": 81,
+        "RumpHeight": 67,
+        "ShoulderHeight": 65
+    },
+    "10610436177": {
+        "Tag": "10610436177",
+        "Name": "",
+        "Weight": 38.2,
+        "BodyLength": 72,
+        "Heartgirth": 79,
+        "RumpHeight": 65,
+        "ShoulderHeight": 63
+    },
+    "010610469982": {
+        "Tag": "010610469982",
+        "Name": "Zara",
+        "Weight": 60,
+        "BodyLength": 85,
+        "Heartgirth": 92,
+        "RumpHeight": 72,
+        "ShoulderHeight": 72
+    }
+}

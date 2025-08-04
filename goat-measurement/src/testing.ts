@@ -134,8 +134,75 @@ const SECOND_OUTSIDE = [
   "test/22_image.png",
 ]
 
+const THIRD_3 = [
+  "test/304_masked.png",
+  //"test/313_masked.png",
+  "test/316_masked.png",
+  "test/319_masked.png",
+  "test/322_masked.png",
+  "test/325_masked.png",
+  "test/329_masked.png",
+  "test/333_masked.png",
+  "test/336_masked.png",
+]
+
+const THIRD_2 = [
+  "test/303_masked.png",
+  "test/312_masked.png",
+  "test/315_masked.png",
+  "test/318_masked.png",
+  "test/321_masked.png",
+  "test/324_masked.png",
+  "test/328_masked.png",
+  "test/332_masked.png",
+  "test/335_masked.png",
+]
+
+const THIRD_1 = [
+  "test/302_masked.png",
+  "test/311_masked.png",
+  //"test/314_masked.png",
+  "test/317_masked.png",
+  "test/320_masked.png",
+  //"text/323_masked.png"
+  "test/327_masked.png",
+  "test/331_masked.png",
+  "test/334_masked.png",
+]
+
+const THIRD_ALL = [
+  "test/302_masked.png",
+  "test/303_masked.png",
+  "test/304_masked.png",
+  "test/311_masked.png",
+  "test/312_masked.png",
+  "test/313_masked.png",
+  "test/314_masked.png",
+  "test/315_masked.png",
+  "test/316_masked.png",
+  "test/317_masked.png",
+  "test/318_masked.png",
+  "test/319_masked.png",
+  "test/320_masked.png",
+  "test/321_masked.png",
+  "test/322_masked.png",
+  "test/324_masked.png",
+  "test/325_masked.png",
+  "test/326_masked.png",
+  "test/327_masked.png",
+  "test/328_masked.png",
+  "test/329_masked.png",
+  "test/330_masked.png",
+  "test/331_masked.png",
+  "test/332_masked.png",
+  "test/333_masked.png",
+  "test/334_masked.png",
+  "test/335_masked.png",
+  "test/336_masked.png",
+]
+
 export async function testAll(container: HTMLElement) {
-  const images = ONE
+  const images = THIRD_3
 
   container.innerHTML =
     `
@@ -153,42 +220,44 @@ export async function testAll(container: HTMLElement) {
 
   let lowestMeanWeight = 1000000
   let lowestCalibration = 1000
-  let calibration = 2.5
+  let calibration = 3.4916
 
-  console.log("using calibration:", calibration)
-  const bodyPcts = []
-  const shoulderPcts = []
-  const rumpPcts = []
-  const weightPcts = []
-  for (let rContainer of rContainers) {
-    const imageEl = rContainer.querySelector("img")!
-    const debugCanvas = rContainer.querySelector<HTMLCanvasElement>(".debug-canvas")!
-    const depthCanvas = rContainer.querySelector<HTMLCanvasElement>(".depth-canvas")!
-    await imageEl.decode()
+  while (true) {
+    console.log("using calibration:", calibration)
+    const bodyPcts = []
+    const shoulderPcts = []
+    const rumpPcts = []
+    const weightPcts = []
+    for (let rContainer of rContainers) {
+      const imageEl = rContainer.querySelector("img")!
+      const debugCanvas = rContainer.querySelector<HTMLCanvasElement>(".debug-canvas")!
+      const depthCanvas = rContainer.querySelector<HTMLCanvasElement>(".depth-canvas")!
+      await imageEl.decode()
 
-    const testResult = await test(rContainer, imageEl, debugCanvas, depthCanvas, weightPredictor, calibration)
-    if (testResult != null) {
-      bodyPcts.push(testResult.bodyPercentage)
-      shoulderPcts.push(testResult.shoulderPercentage)
-      rumpPcts.push(testResult.rumpPercentage)
-      weightPcts.push(testResult.weightPercentage)
+      const testResult = await test(rContainer, imageEl, debugCanvas, depthCanvas, weightPredictor, calibration)
+      if (testResult != null) {
+        bodyPcts.push(testResult.bodyPercentage)
+        shoulderPcts.push(testResult.shoulderPercentage)
+        rumpPcts.push(testResult.rumpPercentage)
+        weightPcts.push(testResult.weightPercentage)
+      }
     }
-  }
-  const meanWeight = mean(weightPcts)
+    const meanWeight = mean(weightPcts)
 
-  console.log("finished all tests")
-  console.log("BodyLength mape:", mean(bodyPcts))
-  console.log("ShoulderHeight mape:", mean(shoulderPcts))
-  console.log("RumpHeight mape:", mean(rumpPcts))
-  console.log("Weight mape:", mean(weightPcts))
+    console.log("finished all tests")
+    console.log("BodyLength mape:", mean(bodyPcts))
+    console.log("ShoulderHeight mape:", mean(shoulderPcts))
+    console.log("RumpHeight mape:", mean(rumpPcts))
+    console.log("Weight mape:", mean(weightPcts))
 
-  if (meanWeight < lowestMeanWeight) {
-    lowestMeanWeight = meanWeight
-    lowestCalibration = calibration
-    console.log("new lowest weight", meanWeight, calibration)
-    calibration += 0.01
-  } else {
-    //break
+    if (meanWeight < lowestMeanWeight) {
+      lowestMeanWeight = meanWeight
+      lowestCalibration = calibration
+      console.log("new lowest weight", meanWeight, calibration)
+      calibration -= 0.001
+    } else {
+      break
+    }
   }
 
   console.log("lowest weight mape at", lowestCalibration, lowestMeanWeight)
@@ -263,21 +332,45 @@ type ImageData = {
   ShoulderHeight: number,
   RumpHeight: number,
   Weight: number,
+  Tag?: string,
 }
 
 async function getData(imagePrefix: string): Promise<ImageData> {
   const res = await fetch(`${imagePrefix}_data.json`)
-  return await res.json()
+  const data: ImageData = await res.json()
+  const bio = await getBiometrie()
+  if (data.Tag) {
+    if (!isNaN(data.Tag) && !isNaN(Number(data.Tag))) {
+      for (const key in bio) {
+        if (key.includes(data.Tag)) {
+          return { ...data, ...bio[key] }
+        }
+      }
+    } else {
+      for (const key in bio) {
+        if (bio[key]["Name"] == data.Tag) {
+          const result = { ...data, ...bio[key] }
+          return result
+        }
+      }
+    }
+  }
+}
+
+async function getBiometrie(): Promise<any> {
+  const res = await fetch("test/biometrie.json")
+  const json = await res.json()
+  return json
 }
 
 async function testOutput(container: Element, bodyLength: number, shoulderHeight: number, rumpHeight: number, bodyHeight: number, weight: number, distance: number, angle: number, groundTruth: ImageData) {
   const outputContainer = document.createElement("div")
-  const bodyPercentage = squarePercentageError(bodyLength, groundTruth.BodyLength)
-  const shoulderPercentage = squarePercentageError(shoulderHeight, groundTruth.ShoulderHeight)
-  const rumpPercentage = squarePercentageError(rumpHeight, groundTruth.RumpHeight)
-  const weightPercentage = squarePercentageError(weight, groundTruth.Weight)
-  const anglePercentage = squarePercentageError(angle, groundTruth.Angle)
-  const distancePercentage = squarePercentageError(distance, groundTruth.Distance)
+  const bodyPercentage = absolutePercentageError(bodyLength, groundTruth.BodyLength)
+  const shoulderPercentage = absolutePercentageError(shoulderHeight, groundTruth.ShoulderHeight)
+  const rumpPercentage = absolutePercentageError(rumpHeight, groundTruth.RumpHeight)
+  const weightPercentage = absolutePercentageError(weight, groundTruth.Weight)
+  const anglePercentage = absolutePercentageError(angle, groundTruth.Angle)
+  const distancePercentage = absolutePercentageError(distance, groundTruth.Distance)
 
   outputContainer.innerHTML =
     `

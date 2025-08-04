@@ -146,8 +146,38 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
     console.log(bodyLengthLine)
   }
   // @ts-ignore this is not a Tensor2D no clue why it thinks that we reduce the dimensions by one
-  const [bodyLengthStart, bodyLengthEnd, bodyLength] = syncBinaryRle(bodyLengthLine)
+  let [bodyLengthStart, bodyLengthEnd, bodyLength] = syncBinaryRle(bodyLengthLine)
   draw(canvas, bodyLengthStart, bodyLengthIndex.dataSync()[0], bodyLengthEnd, bodyLengthIndex.dataSync()[0], "black", x, box.topY())
+
+  const centerWidth = (bodyLengthEnd + bodyLengthStart) / 2 + bodyLengthStart
+  const centerHeight = bodyLengthIndex.dataSync()[0]
+  const degrees = (direction == "left") ? -15 : 15
+  const rotated = rotateDegrees(degrees, [centerHeight, centerWidth], detection.shape)
+  const rotatedProjection = rotated.toBool().logicalAnd(detection.toBool()).toInt()
+  await drawImage(canvas, rotatedProjection, box)
+
+  const yFront = rotatedProjection
+    .cumsum(1)
+    .gather(tf.tensor([rotated.shape[1] - 1], [1], "int32"), 1)
+    .squeeze()
+    .toBool().toInt()
+    .mul(tf.range(1, rotated.shape[0] + 1)).toInt()
+    .max().dataSync()[0]
+  if (direction == "right") {
+    const xFront = rotatedProjection.cumsum(0).gather(tf.tensor([rotated.shape[0] - 1], [1], "int32"), 0)
+      .squeeze().toBool().toInt().mul(tf.range(1, rotated.shape[1] + 1)).toInt().argMax().dataSync()[0]
+    drawCirc(canvas, xFront, yFront, box, "green")
+    draw(canvas, xFront, yFront, bodyLengthStart, centerHeight, "orange", box.topX(), box.topY())
+    const length = distance(xFront, yFront, bodyLengthStart, centerHeight)
+    bodyLength = length
+  } else {
+    const xFront = rotatedProjection.cumsum(0).gather(tf.tensor([rotated.shape[0] - 1], [1], "int32"), 0)
+      .squeeze().toBool().toInt().mul(tf.range(rotated.shape[1] + 1, 1, -1)).toInt().argMax().dataSync()[0]
+    drawCirc(canvas, xFront, yFront, box, "green")
+    draw(canvas, bodyLengthEnd, centerHeight, xFront, yFront, "orange", box.topX(), box.topY())
+    const length = distance(xFront, yFront, bodyLengthEnd, centerHeight)
+    bodyLength = length
+  }
 
   const shoulderIndex = lowestShoulderIndex.add(tf.scalar(shoulderSideStart, "int32"))
   const shoulderStart = detection.gather(shoulderIndex, 1).squeeze().mul(colRange.reverse()).argMax(0)
@@ -162,6 +192,68 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
   const rumpHeight = rumpBottom.sub(rumpTop)
 
   return [bodyLength, shoulderHeight.dataSync()[0], rumpHeight.dataSync()[0], bodyHeight.dataSync()[0]]
+}
+
+/**
+ * calculates euclidian distance between two points
+ * @param x1
+ * @param x2
+ * @param y1
+ * @param y2
+ * @returns distance
+ */
+function distance(x1: number, y1: number, x2: number, y2: number) {
+  return Math.sqrt(((x1 - x2) * (x1 - x2)) + ((y1 - y2) * (y1 - y2)))
+}
+
+/**
+ * @param degrees rotation degrees
+ * @param center center of rotation
+ * @param shape size of the mask
+ */
+function rotateDegrees(degrees: number, center: [number, number], shape: [number, number]): tf.Tensor2D {
+  const [height, width] = center
+  let line = tf.zeros(shape, "int32")
+  const buffer = line.bufferSync()
+
+  for (let i = 0; i < shape[1]; i++) {
+    buffer.set(255, height, i)
+  }
+  line = buffer.toTensor().toFloat().expandDims(0).expandDims(-1)
+
+  const rotated = tf.image.rotateWithOffset(line, Math.PI * -degrees / 180, 0)
+
+  return rotated.squeeze().toInt()
+}
+
+/**
+ * @param canvas canvas to draw to
+ * @param mask tensor mask to draw
+ * @param imageShape size of the original image
+ * @param box  detection box
+ */
+async function drawImage(canvas: HTMLCanvasElement | null, mask: tf.Tensor2D, box: Box, imageShape = [640, 640]) {
+  if (canvas) {
+    const [height, width] = mask.shape
+    const padded = mask.pad([
+      [box.topY(), imageShape[0] - box.topY() - height],
+      [box.topX(), imageShape[1] - box.topX() - width]
+    ])
+
+    const newOverlay = tf.tidy(() => {
+      let expandedMask = padded.expandDims(-1)
+      let overlay = tf.zeros<tf.Rank.R3>([imageShape[0], imageShape[1], 4], 'int32') // RGBA
+      return overlay.where<tf.Tensor3D>(expandedMask.less(1), tf.tensor1d([0, 0, 0, 255], 'int32'))
+    })
+
+    let tempCanvas = document.createElement("canvas")
+    tempCanvas.width = imageShape[0]
+    tempCanvas.height = imageShape[1]
+    await tf.browser.toPixels(newOverlay, tempCanvas)
+    newOverlay.dispose()
+    let ctx = canvas.getContext('2d')!
+    ctx.drawImage(tempCanvas, 0, 0, imageShape[0], imageShape[1])
+  }
 }
 
 /**
@@ -192,6 +284,20 @@ function drawRect(canvas: HTMLCanvasElement | null, x: number, y: number, width:
   let ctx = canvas.getContext("2d")!
   ctx.fillStyle = style
   ctx.fillRect(x, y, width, height)
+}
+
+/**
+ * Draws a small rect at postion
+ * @param canvas target to draw if null nothing happens
+ * @param x top left corner z coordinate
+ * @param y top left corner y coordinate
+ * @param style style for the rect
+ */
+function drawCirc(canvas: HTMLCanvasElement | null, x: number, y: number, box: Box, style: string) {
+  if (canvas == null) return
+  let ctx = canvas.getContext("2d")!
+  ctx.fillStyle = style
+  ctx.fillRect(x + box.topX() - 1, y + box.topY() - 1, 3, 3)
 }
 
 /**
