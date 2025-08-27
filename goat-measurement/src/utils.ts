@@ -1,5 +1,6 @@
 import * as tf from '@tensorflow/tfjs'
 import { Box } from './yolotfjs'
+import ExifReader from 'exifreader'
 
 /**
  * Calculates the longest line of consecutive ones
@@ -92,7 +93,7 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
   let lastIndices = detection.mul(colRange.expandDims(-1)).argMax(0)
   const headWidth = Math.floor(width * 0.2) // this might need more finetuning
   const shoulderWidth = Math.floor(width * 0.4)
-  const rumpWidth = Math.floor(width * 0.4)
+  const rumpWidth = Math.floor(width * 0.3)
   const tailWidth = Math.floor(width * 0.1)
   let [headStart, shoulderSideStart, rumpSideStart, tailStart] = [0, 0, 0, 0]
   if (direction == "left") {
@@ -101,9 +102,9 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
     headStart = 0
     tailStart = width - tailWidth
   } else {
-    shoulderSideStart = rumpWidth
-    rumpSideStart = tailStart
-    headStart = rumpWidth + shoulderWidth
+    shoulderSideStart = rumpWidth + tailWidth
+    rumpSideStart = tailWidth
+    headStart = rumpWidth + shoulderWidth + tailWidth
     tailStart = 0
   }
   drawRect(canvas, x + headStart, box.topY(), headWidth, box.height(), "#3022dd24")
@@ -151,8 +152,8 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
 
   const centerWidth = (bodyLengthEnd + bodyLengthStart) / 2 + bodyLengthStart
   const centerHeight = bodyLengthIndex.dataSync()[0]
-  const degrees = (direction == "left") ? -15 : 15
-  const rotated = rotateDegrees(degrees, [centerHeight, centerWidth], detection.shape)
+  const degrees = (direction == "left") ? -12.5 : 12.5
+  const rotated = rotateDegrees(degrees, [centerHeight, newMiddle.dataSync()[0]], detection.shape)
   const rotatedProjection = rotated.toBool().logicalAnd(detection.toBool()).toInt()
   await drawImage(canvas, rotatedProjection, box)
 
@@ -221,7 +222,7 @@ function rotateDegrees(degrees: number, center: [number, number], shape: [number
   }
   line = buffer.toTensor().toFloat().expandDims(0).expandDims(-1)
 
-  const rotated = tf.image.rotateWithOffset(line, Math.PI * -degrees / 180, 0)
+  const rotated = tf.image.rotateWithOffset(line, Math.PI * -degrees / 180, 0, width / shape[1])
 
   return rotated.squeeze().toInt()
 }
@@ -354,7 +355,9 @@ function scaleToWidth(pixels: number, convertOptions: Options) {
  * @returns scaled pixels
  */
 function scaleToHeight(pixels: number, convertOptions: Options) {
-  return pixels / convertOptions.mask_shape[0] * convertOptions.orig_shape[0] / Math.cos(convertOptions.angle * Math.PI / 180)
+  const angleFactor = Math.cos(convertOptions.angle * Math.PI / 180)
+  //const angleFactor = 1
+  return pixels / convertOptions.mask_shape[0] * convertOptions.orig_shape[0] / angleFactor
 }
 
 /**
@@ -364,9 +367,12 @@ function scaleToHeight(pixels: number, convertOptions: Options) {
  * @returns number of centimeters
  */
 function pixelsToCm(pixels: number, convertOptions: Options) {
+  const m = pixels / convertOptions.mask_shape[0] * convertOptions.sensorSize * convertOptions.distance / convertOptions.focalLength
+  return m * 100
   return pixels / (convertOptions.calibration * convertOptions.calibration_distance / (convertOptions.distance * 100))
   //return pixels / (calibration(convertOptions.distance) / 100)
 }
+
 
 /**
  * Convert measurements to centimeters.
@@ -397,6 +403,8 @@ type ConvertOptions = {
   orig_shape?: number[]
   mask_shape?: number[]
   angle?: number
+  sensorSize?: number
+  focalLength?: number
 }
 
 /**
@@ -409,6 +417,8 @@ type Options = {
   orig_shape: number[]
   mask_shape: number[]
   angle: number
+  sensorSize: number
+  focalLength: number
 }
 
 /**
@@ -421,6 +431,8 @@ const DefaultConvertOptions: Options = {
   orig_shape: [640, 640],
   mask_shape: [640, 640],
   angle: 20,
+  sensorSize: 4.2,
+  focalLength: 4.4
 }
 
 function calibration(distance: number) {
@@ -435,4 +447,39 @@ function calibration(distance: number) {
   const factor = diff / (meters[counter] - meters[counter - 1])
   const factor2 = 1 - factor
   return lengths[counter] * factor2 + lengths[counter - 1] * factor
+}
+
+/**
+ * Calculates the sensorSize from the exif data of the input image.
+ *
+ * @param image image with exif data
+ * @return sensor size in mm
+ */
+export function readImage(image: ArrayBuffer) {
+  const tags = ExifReader.load(image)
+  const [focalLength, focal35mm] = [tags.FocalLength, tags.FocalLengthIn35mmFilm, tags.ScaleFactorTo35mmEquivalent]
+  if (focalLength && focal35mm) {
+    let focalLengthConv = 4
+    if (focalLength.value instanceof Array) {
+      const [first, second] = focalLength.value
+      if (typeof first === 'number' && typeof second === 'number') {
+        focalLengthConv = first / second
+      } else if (typeof first === 'string' && typeof second === 'string') {
+        focalLengthConv = parseInt(first) / parseInt(second)
+      }
+    }
+
+    let focal35mmConv = 26
+    if (typeof focal35mm.value === 'number') {
+      focal35mmConv = focal35mm.value
+    } else if (typeof focal35mm.value === 'string') {
+      focal35mmConv = parseInt(focal35mm.value)
+    }
+    const sensorDiagonal = 43.27 * focalLengthConv / focal35mmConv
+    console.log(sensorDiagonal)
+    const sensorSize = 3 * sensorDiagonal / 5
+    console.log(sensorSize)
+    return sensorSize
+  }
+  return null
 }

@@ -258,6 +258,7 @@ export async function testAll(container: HTMLElement) {
     } else {
       break
     }
+    break
   }
 
   console.log("lowest weight mape at", lowestCalibration, lowestMeanWeight)
@@ -300,6 +301,8 @@ async function test(container: Element, imageEl: HTMLImageElement, debugCanvas: 
     depthCanvas,
     groundTruth["Direction"],
     calibration,
+    4.19386,
+    4.42648,
     () => { }
   )
   if (res != null) {

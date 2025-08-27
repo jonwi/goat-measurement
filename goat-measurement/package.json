@@ -26,6 +26,7 @@
     "@huggingface/transformers": "^3.4.2",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
+    "exifreader": "^4.31.1",
     "onnxruntime-web": "^1.22.0"
   }
 }

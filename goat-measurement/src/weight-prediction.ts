@@ -28,6 +28,8 @@ export class WeightPredictor {
    * @param depthCanvas this canvas can show depth information
    * @param direction this is the direction the goat is facing
    * @param calibration this value is used to get cm from pixels
+   * @param sensorSize size of the sensor for this camera
+   * @param focalLength the focal length of the camera
    * @param onError function called when any error occurs with error message
    * @returns realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle
    */
@@ -38,6 +40,8 @@ export class WeightPredictor {
     depthCanvas: HTMLCanvasElement,
     direction: "right" | "left",
     calibration: number,
+    sensorSize: number,
+    focalLength: number,
     onError: (message: string) => void
   ) {
     const success = await this.yoloProm
@@ -61,7 +65,7 @@ export class WeightPredictor {
           shoulderHeight,
           rumpHeight,
           bodyHeight,
-          { distance: distance, angle: angle, calibration: calibration }
+          { distance: distance, angle: angle, calibration: calibration, sensorSize: sensorSize, focalLength: focalLength }
         );
       weight = this.linearRegression(realBodyLength, realShoulderHeight, realRumpHeight, 0, bodyHeight)
 

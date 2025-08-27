@@ -6,6 +6,7 @@ import './utils.ts'
 import { AngleProviderSensor } from './angle-provider.ts'
 import { testAll } from './testing.ts'
 import { WeightPredictor } from './weight-prediction.ts'
+import { readImage } from './utils.ts'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
@@ -76,6 +77,7 @@ type AppState = {
   streamSettings: MediaTrackSettings | null
   capture: ImageCapture | null
   track: MediaStreamTrack | null
+  sensorSize: number | null
 }
 
 const state: AppState = {
@@ -87,6 +89,7 @@ const state: AppState = {
   streamSettings: null,
   capture: null,
   track: null,
+  sensorSize: null,
 }
 
 calibrationInput.addEventListener("change", () => {
@@ -168,6 +171,9 @@ window.addEventListener("resize", () => {
 navigator.permissions.query({ name: "camera" }).then(async (perm) => {
   if (perm.state != 'denied') {
     await setupVideo()
+
+
+
   } else {
     toast("camera permission denied")
   }
@@ -184,6 +190,10 @@ async function setupVideo() {
   state.streamSettings = state.track.getSettings()
   state.capture = new ImageCapture(state.track)
   resizeOverlayImage(video.offsetWidth, video.offsetHeight)
+
+  const originalImage = await takePhoto(state.capture!)
+  const buffer = await originalImage.arrayBuffer()
+  state.sensorSize = readImage(buffer)
 
   video.srcObject = stream
   video.onloadedmetadata = () => {
@@ -216,6 +226,8 @@ mainButton.addEventListener("click", async () => {
     depthCanvas,
     state.direction,
     state.calibration,
+    state.sensorSize ?? 4.2,
+    4.4,
     (message) => {
       toast(message)
     }
