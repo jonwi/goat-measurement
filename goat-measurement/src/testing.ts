@@ -140,7 +140,7 @@ const THIRD_3 = [
   "test/316_masked.png",
   "test/319_masked.png",
   "test/322_masked.png",
-  "test/325_masked.png",
+  //"test/325_masked.png",
   "test/329_masked.png",
   "test/333_masked.png",
   "test/336_masked.png",
@@ -152,7 +152,7 @@ const THIRD_2 = [
   "test/315_masked.png",
   "test/318_masked.png",
   "test/321_masked.png",
-  "test/324_masked.png",
+  //"test/324_masked.png",
   "test/328_masked.png",
   "test/332_masked.png",
   "test/335_masked.png",
@@ -162,8 +162,8 @@ const THIRD_1 = [
   "test/302_masked.png",
   "test/311_masked.png",
   //"test/314_masked.png",
-  "test/317_masked.png",
-  "test/320_masked.png",
+  //"test/317_masked.png",
+  //"test/320_masked.png",
   //"text/323_masked.png"
   "test/327_masked.png",
   "test/331_masked.png",
@@ -176,25 +176,25 @@ const THIRD_ALL = [
   "test/304_masked.png",
   "test/311_masked.png",
   "test/312_masked.png",
-  "test/313_masked.png",
-  "test/314_masked.png",
+  //"test/313_masked.png",
+  //"test/314_masked.png",
   "test/315_masked.png",
   "test/316_masked.png",
-  "test/317_masked.png",
-  "test/318_masked.png",
+  //"test/317_masked.png",
+  //"test/318_masked.png",
   "test/319_masked.png",
-  "test/320_masked.png",
-  "test/321_masked.png",
+  //"test/320_masked.png",
+  //"test/321_masked.png",
   "test/322_masked.png",
-  "test/324_masked.png",
-  "test/325_masked.png",
-  "test/326_masked.png",
+  //"test/324_masked.png",
+  //"test/325_masked.png",
+  //"test/326_masked.png",
   "test/327_masked.png",
   "test/328_masked.png",
   "test/329_masked.png",
   "test/330_masked.png",
   "test/331_masked.png",
-  "test/332_masked.png",
+  //"test/332_masked.png",
   "test/333_masked.png",
   "test/334_masked.png",
   "test/335_masked.png",
@@ -202,7 +202,7 @@ const THIRD_ALL = [
 ]
 
 export async function testAll(container: HTMLElement) {
-  const images = THIRD_3
+  const images = THIRD_ALL
 
   container.innerHTML =
     `
@@ -228,6 +228,7 @@ export async function testAll(container: HTMLElement) {
     const shoulderPcts = []
     const rumpPcts = []
     const weightPcts = []
+    const results = []
     for (let rContainer of rContainers) {
       const imageEl = rContainer.querySelector("img")!
       const debugCanvas = rContainer.querySelector<HTMLCanvasElement>(".debug-canvas")!
@@ -240,6 +241,7 @@ export async function testAll(container: HTMLElement) {
         shoulderPcts.push(testResult.shoulderPercentage)
         rumpPcts.push(testResult.rumpPercentage)
         weightPcts.push(testResult.weightPercentage)
+        results.push(testResult)
       }
     }
     const meanWeight = mean(weightPcts)
@@ -249,6 +251,15 @@ export async function testAll(container: HTMLElement) {
     console.log("ShoulderHeight mape:", mean(shoulderPcts))
     console.log("RumpHeight mape:", mean(rumpPcts))
     console.log("Weight mape:", mean(weightPcts))
+    console.log("Results:", results)
+
+    const resultStrings = []
+    for (let result of results) {
+      const string = "[" + result.bodyLength.toFixed(4) + "," + result.shoulderHeight.toFixed(4) + "," + result.rumpHeight.toFixed(4) + "," + result.realWeight.toFixed(4) + "," + result.bodyHeight.toFixed(4) + "]"
+      resultStrings.push(string)
+    }
+    const pythonOutput = "[" + resultStrings.join(",") + "]"
+    console.log(pythonOutput)
 
     if (meanWeight < lowestMeanWeight) {
       lowestMeanWeight = meanWeight
@@ -325,6 +336,7 @@ type TestResult = {
   weight: number
   angle: number
   distance: number
+  realWeight: number
 }
 
 type ImageData = {
@@ -358,6 +370,7 @@ async function getData(imagePrefix: string): Promise<ImageData> {
       }
     }
   }
+  return data
 }
 
 async function getBiometrie(): Promise<any> {
@@ -402,6 +415,7 @@ async function testOutput(container: Element, bodyLength: number, shoulderHeight
     weight: weight,
     angle: angle,
     distance: distance,
+    realWeight: groundTruth.Weight,
   }
   return result
 }

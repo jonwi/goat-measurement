@@ -355,8 +355,9 @@ function scaleToWidth(pixels: number, convertOptions: Options) {
  * @returns scaled pixels
  */
 function scaleToHeight(pixels: number, convertOptions: Options) {
-  const angleFactor = Math.cos(convertOptions.angle * Math.PI / 180)
-  //const angleFactor = 1
+  let angleFactor = Math.cos(convertOptions.angle * Math.PI / 180)
+  //angleFactor = 1 + (angleFactor - 1) / 2
+  //let angleFactor = 1
   return pixels / convertOptions.mask_shape[0] * convertOptions.orig_shape[0] / angleFactor
 }
 
@@ -385,6 +386,7 @@ function pixelsToCm(pixels: number, convertOptions: Options) {
  */
 export function convertToCm(body_length: number, shoulder_height: number, rump_height: number, bodyHeight: number, convertOptions: ConvertOptions) {
   const options = { ...DefaultConvertOptions, ...convertOptions }
+  console.log(options)
   return [
     pixelsToCm(scaleToWidth(body_length, options), options),
     pixelsToCm(scaleToHeight(shoulder_height, options), options),
