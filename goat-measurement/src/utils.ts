@@ -78,6 +78,7 @@ function syncBinaryRle(t: tf.Tensor1D) {
  * @returns bodyLength, shoulderHeight, rumpHeight, bodyHeight in pixels
  */
 export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLCanvasElement | null = null, direction: "left" | "right") {
+  performance.mark("start_measurement")
   // mask is hxw 640x640
   let detection = mask.slice([box.topY(), box.topX()], [box.height(), box.width()])
   let height = box.height()
@@ -192,6 +193,7 @@ export async function bodyMeasurement(mask: tf.Tensor2D, box: Box, canvas: HTMLC
   draw(canvas, rumpIndex.dataSync()[0], rumpTop.dataSync()[0], rumpIndex.dataSync()[0], rumpBottom.dataSync()[0], "orange", x, box.topY())
   const rumpHeight = rumpBottom.sub(rumpTop)
 
+  performance.mark("end_measurement")
   return [bodyLength, shoulderHeight.dataSync()[0], rumpHeight.dataSync()[0], bodyHeight.dataSync()[0]]
 }
 
@@ -386,7 +388,6 @@ function pixelsToCm(pixels: number, convertOptions: Options) {
  */
 export function convertToCm(body_length: number, shoulder_height: number, rump_height: number, bodyHeight: number, convertOptions: ConvertOptions) {
   const options = { ...DefaultConvertOptions, ...convertOptions }
-  console.log(options)
   return [
     pixelsToCm(scaleToWidth(body_length, options), options),
     pixelsToCm(scaleToHeight(shoulder_height, options), options),

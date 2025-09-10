@@ -49,6 +49,7 @@ export class WeightPredictor {
       onError("Could not initialize goat model.")
       return null
     }
+    performance.mark("start_predict")
 
     const maskProm = this.yolo.predict(input, imageCanvas, resultCanvas)
     const distanceProm = this.distanceProvider.distance(input, depthCanvas)
@@ -67,9 +68,10 @@ export class WeightPredictor {
           bodyHeight,
           { distance: distance, angle: angle, calibration: calibration, sensorSize: sensorSize, focalLength: focalLength }
         );
-      weight = this.linearRegression(realBodyLength, realShoulderHeight, realRumpHeight, 0, bodyHeight)
+      weight = this.linearRegression(realBodyLength, realShoulderHeight, realRumpHeight, 0, realBodyHeight)
 
       data.push([realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle])
+      performance.mark("end_predict")
       return [realBodyLength, realShoulderHeight, realRumpHeight, realBodyHeight, weight, distance, angle]
     }
     return null
@@ -111,10 +113,21 @@ export class WeightPredictor {
     //let coef = [0.78557921, 0.88108601, 0.98848215]
     //const intercept = -136.81080809539807
 
+    // trained on own data
+    //let features = [bodyLength, rumpHeight]
+    //let coef = [1.67876738, 1.02266862]
+    //let intercept = -148.77576067863498
+
+    console.log(bodyLength, bodyHeight)
+    // trained on own data and bodyheight
+    let features = [bodyLength, bodyHeight]
+    let coef = [1.29937047, 1.49004426]
+    let intercept = -106.09026293140393
+
     // no shoulders
-    let features = [bodyLength, rumpHeight]
-    let coef = [0.88075418, 1.64152699]
-    const intercept = -129.71623666348054
+    //let features = [bodyLength, rumpHeight]
+    //let coef = [0.88075418, 1.64152699]
+    //const intercept = -129.71623666348054
 
     const value = features.map((v, i) => v * coef[i]).reduce((p, c) => p + c, 0)
     const weight = value + intercept

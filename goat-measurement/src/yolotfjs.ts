@@ -77,7 +77,7 @@ export class YOLO implements GoatPredictor {
    * @param canvas result canvas
   */
   preprocess(imageEl: HTMLImageElement | ImageData | HTMLVideoElement, imageCanvas: HTMLCanvasElement, canvas: HTMLCanvasElement | null) {
-    const startTime = new Date().getTime()
+    performance.mark("start_preprocess")
     if (this.input) {
       this.input.dispose()
       this.input = null
@@ -130,21 +130,21 @@ export class YOLO implements GoatPredictor {
           .expandDims(0)
           .toFloat().div(tf.scalar(255))
       })
-    if (this.debug) console.log("preprocess time: ", new Date().getTime() - startTime)
+    performance.mark("end_preprocess")
   }
 
   /**
    * Runs the model on this.input and writes to this.output
   */
   runInference() {
-    const startTime = new Date().getTime()
+    performance.mark("start_inference")
     if (this.output) {
       this.output[0].dispose()
       this.output[1].dispose()
       this.output = null
     }
     this.output = this.model.execute(this.input!)
-    if (this.debug) console.log("inference time: ", new Date().getTime() - startTime)
+    performance.mark("end_inference")
   }
 
   /**
@@ -153,7 +153,7 @@ export class YOLO implements GoatPredictor {
    * @returns a binary tf.Tensor2D or null if no detection of quality was made
   */
   postprocess() {
-    const startTime = new Date().getTime()
+    performance.mark("start_postprocess")
     const [detectionTensor, segmentationTensor] = this.output!
 
     if (this.mask) {
@@ -216,7 +216,7 @@ export class YOLO implements GoatPredictor {
     segmentationMap.dispose()
     confidences.dispose()
 
-    if (this.debug) console.log("postprocess time: ", new Date().getTime() - startTime)
+    performance.mark("end_postprocess")
     return this.mask
   }
 
@@ -230,7 +230,7 @@ export class YOLO implements GoatPredictor {
     if (this.mask == null || this.box == null || this.inputHeight == null || this.inputWidth == null || this.originalHeight == null || this.originalWidth == null || this.scaledOriginalHeight == null || this.scaledOriginalWidth == null || this.inputImage == null)
       return
 
-    let startTime = new Date().getTime()
+    performance.mark("start_draw")
 
     const newOverlay = tf.tidy(() => {
       let expandedMask = this.mask!.expandDims(-1)
@@ -260,7 +260,7 @@ export class YOLO implements GoatPredictor {
       ctx.rect(this.box.topX(), this.box.topY(), this.box.w, this.box.h)
       ctx.stroke()
     }
-    if (this.debug) console.log("draw time: ", new Date().getTime() - startTime)
+    performance.mark("end_draw")
   }
 
 }

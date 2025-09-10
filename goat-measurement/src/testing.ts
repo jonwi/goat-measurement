@@ -235,6 +235,7 @@ export async function testAll(container: HTMLElement) {
       const depthCanvas = rContainer.querySelector<HTMLCanvasElement>(".depth-canvas")!
       await imageEl.decode()
 
+
       const testResult = await test(rContainer, imageEl, debugCanvas, depthCanvas, weightPredictor, calibration)
       if (testResult != null) {
         bodyPcts.push(testResult.bodyPercentage)
@@ -242,8 +243,10 @@ export async function testAll(container: HTMLElement) {
         rumpPcts.push(testResult.rumpPercentage)
         weightPcts.push(testResult.weightPercentage)
         results.push(testResult)
+
       }
     }
+
     const meanWeight = mean(weightPcts)
 
     console.log("finished all tests")
@@ -252,6 +255,20 @@ export async function testAll(container: HTMLElement) {
     console.log("RumpHeight mape:", mean(rumpPcts))
     console.log("Weight mape:", mean(weightPcts))
     console.log("Results:", results)
+
+    performance.measure("preprocess_time", "start_preprocess", "end_preprocess")
+    performance.measure("postprocess_time", "start_postprocess", "end_postprocess")
+    performance.measure("inference_time", "start_inference", "end_inference")
+    performance.measure("measurement_time", "start_measurement", "end_measurement")
+    performance.measure("draw_time", "start_draw", "end_draw")
+    performance.measure("total_time", "start_predict", "end_predict")
+    const preprocessTime = performance.getEntriesByName("preprocess_time").map((d) => d.duration).reduce((a, c) => Math.min(a, c))
+    const inferenceTime = performance.getEntriesByName("inference_time").map((d) => d.duration).reduce((a, c) => Math.min(a, c))
+    const postprocessTime = performance.getEntriesByName("postprocess_time").map((d) => d.duration).reduce((a, c) => Math.min(a, c))
+    const drawTime = performance.getEntriesByName("draw_time").map((d) => d.duration).reduce((a, c) => Math.min(a, c))
+    const measurementTime = performance.getEntriesByName("measurement_time").map((d) => d.duration).reduce((a, c) => Math.min(a, c))
+    const totalTime = performance.getEntriesByName("total_time").map((d) => d.duration).reduce((a, c) => Math.min(a, c))
+    console.log(preprocessTime.toFixed(4), " & ", inferenceTime.toFixed(4), " & ", postprocessTime.toFixed(4), " & ", drawTime.toFixed(4), " & ", measurementTime.toFixed(4), " & ", totalTime.toFixed(4))
 
     const resultStrings = []
     for (let result of results) {
@@ -273,6 +290,7 @@ export async function testAll(container: HTMLElement) {
   }
 
   console.log("lowest weight mape at", lowestCalibration, lowestMeanWeight)
+  performance.clearMarks()
 }
 
 function mean(arr: number[]) {
